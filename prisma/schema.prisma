@@ -1,0 +1,44 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model users {
+  id            String       @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  username      String       @unique @db.VarChar(255)
+  phone_number  String       @unique @db.VarChar(20)
+  email         String       @unique @db.VarChar(255)
+  password      String       @db.VarChar(255)
+  gender        gender_input
+  role          String?      @default("user") @db.VarChar(10)
+  avatar_url    String?      @db.VarChar(255)
+  register_date DateTime?    @default(now()) @db.Timestamptz(6)
+}
+
+enum gender_input {
+  Laki
+  Perempuan
+  Rahasia
+}
+
+enum order_status_input {
+  Belum_Bayar @map("Belum Bayar")
+  Dikemas
+  Dikirim
+  Selesai
+}
+
+enum payment_method_input {
+  COD
+  Midtrans
+}
+
+enum payment_status_input {
+  Sukses
+  Proses
+  Gagal
+}

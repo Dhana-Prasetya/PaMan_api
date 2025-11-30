@@ -7,7 +7,8 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "server": "node index.js",
     "dev": "nodemon index.js",
-    "db-pull": "npx prisma db pull",
+    "db-pull-from-db": "npx prisma db pull",
+    "db-save-prisma-schema": "npx prisma generate",
     "prisma-setup": "npm i prisma --save-dev && npx prisma init && npm i @prisma/client",
     "lint": "eslint"
   },

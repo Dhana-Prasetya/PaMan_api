@@ -1,8 +1,8 @@
 const multer = require("multer"); // Calling multer package for handling multipart/form-data (file uploads)
 const { response } = require("../helper/common.js");
-const limit = require("../config/limit.js");
+const { imageConstraint } = require("../config/inputConstraint.js");
 
-const maxSize = limit.imgMaxSize; // 2MB
+const maxSize = imageConstraint.maxSize; // 2MB
 
 // Use multer limits to enforce file size server-side instead of relying on content-length header.
 const multerUploadFile = multer({

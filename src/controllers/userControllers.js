@@ -1,14 +1,17 @@
 const { generateToken } = require("../helper/auth");
 const bcrypt = require("bcryptjs");
 const commonHelper = require("../helper/common.js");
-const inputValidator = require("zod");
+const zodValidator = require("zod");
 const { PrismaClient } = require("@prisma/client");
-const limit = require("../config/limit.js");
+const {
+	userConstraint,
+	stringConstraint,
+} = require("../config/inputConstraint.js");
 
 const prisma = new PrismaClient();
 
 const userController = {
-	Register: async (req, res, next) => {
+	Register: async (req, res) => {
 		try {
 			let { username, phone_number, email, password, gender } = req.body;
 
@@ -21,28 +24,28 @@ const userController = {
 				errors.field = "All fields are required !";
 			}
 
-			const emailCheck = inputValidator.email(); // Email input validator
+			const emailCheck = zodValidator.string().email(); // Email input validator
 			if (!emailCheck.safeParse(email).success) {
 				errors.email = "Invalid email format !";
 			}
 
-			const passwordCheck = inputValidator.string().min(8);
+			const passwordCheck = zodValidator.string().min(8);
 
 			if (!passwordCheck.safeParse(password).success) {
 				errors.password = "Password need to be at least 8 characters long !";
 			}
 
-			if (!limit.genderEnum.includes(gender)) {
+			if (!userConstraint.genderEnum.includes(gender)) {
 				errors.gender =
 					"Gender only support ''Laki'', ''Perempuan'', or ''Rahasia''";
 			}
 
 			if (
 				// Input length validator
-				username.length > limit.dbVarcharMax ||
-				password.length > limit.dbVarcharMax ||
-				email.length > limit.dbVarcharMax ||
-				phone_number.length > limit.phoneNumberLimit
+				username.length > stringConstraint.maxVarchar ||
+				password.length > stringConstraint.maxVarchar ||
+				email.length > stringConstraint.maxVarchar ||
+				phone_number.length > userConstraint.phoneNumberMaxVarchar
 			) {
 				errors.length = "Input exceeding maximum characters !";
 			}
@@ -69,7 +72,7 @@ const userController = {
 					res,
 					null,
 					403,
-					"Email is already registered"
+					"Email is already registered !"
 				);
 			}
 
@@ -82,6 +85,8 @@ const userController = {
 				phone_number,
 				gender,
 				email,
+				role: userConstraint.userRole, // 'user' as a role
+				avatar_url: userConstraint.defaultUserAvatarUrl, // Default avatar URL
 			};
 
 			const result = await prisma.users.create({
@@ -89,7 +94,7 @@ const userController = {
 				data: data,
 			});
 
-			return commonHelper.response(res, result, 201, "Register success");
+			return commonHelper.response(res, result, 201, "Register success !");
 		} catch (error) {
 			console.error(error);
 			return commonHelper.response(res, null, 500, "Internal server error");
@@ -108,17 +113,15 @@ const userController = {
 					.json({ message: "Email and password are required !" });
 			}
 
-			const emailCheck = inputValidator.email(); // Email input validator
+			const emailCheck = zodValidator.string().email(); // Email input validator
 			if (!emailCheck.safeParse(email).success) {
-				return res
-					.status(400)
-					.json({ message: "Email and password are required !" });
+				return res.status(400).json({ message: "Email are not valid !" });
 			}
 
 			if (
 				// Input length validator
-				email.length > limit.dbVarcharMax ||
-				password.length > limit.dbVarcharMax
+				email.length > stringConstraint.maxVarchar ||
+				password.length > stringConstraint.maxVarchar
 			) {
 				return res
 					.status(400)
@@ -141,7 +144,7 @@ const userController = {
 					res,
 					null,
 					401,
-					"Invalid password or email"
+					"Email are not registered !"
 				);
 			}
 
@@ -152,7 +155,7 @@ const userController = {
 					res,
 					null,
 					401,
-					"Invalid password or email"
+					"Invalid password or email !"
 				);
 			}
 
@@ -167,7 +170,7 @@ const userController = {
 				role: dataInDb.role,
 			};
 
-			dataInDb.token = generateToken(payload); // Create token
+			dataInDb.token = generateToken(payload); // Create token and add to dataInDb object
 			return commonHelper.response(res, dataInDb, 201, "Login success");
 		} catch (error) {
 			res.send(error);

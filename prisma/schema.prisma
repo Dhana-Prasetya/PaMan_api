@@ -17,6 +17,7 @@ model users {
   role          String      @db.VarChar(10)
   avatar_url    String?     @db.VarChar(255)
   register_date DateTime?   @default(now()) @db.Timestamptz(6)
+  birthday      DateTime?   @db.Date
 }
 
 model contact {

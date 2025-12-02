@@ -13,7 +13,8 @@ const adminAuth = (req, res, next) => {
 				next(new createError(401, "Not Authorized !"));
 			}
 
-			req.payload = decoded;
+			// Provide a `req.user` alias for handlers that expect it
+			req.user = decoded;
 
 			next();
 		} else {

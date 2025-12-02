@@ -8,6 +8,7 @@ const {
 	STRING_CONSTRAINT,
 	DATE_CONSTRAINT,
 } = require("../config/inputConstraint.js");
+const userDuplicationCheck = require("../helper/userDuplicationCheck.js");
 
 const saltRounds = 10; // Standard salt rounds for bcrypt
 const prisma = new PrismaClient();
@@ -17,7 +18,7 @@ const userController = {
 		try {
 			let { username, phone_number, email, password, gender } = req.body;
 
-			// ------------------------ Input Validations ----------------------- //
+			// ------------------------ Input & Duplication Validations ----------------------- //
 
 			const errors = {}; // Object to hold every client errors
 
@@ -52,34 +53,28 @@ const userController = {
 				errors.length = "Input exceeding maximum characters !";
 			}
 
+			const duplicationCheck = await userDuplicationCheck(
+				email,
+				username,
+				phone_number
+			);
+
+			if (duplicationCheck > 0) {
+				errors.duplication =
+					"Email, username, or phone number is already registered !";
+			}
+
 			if (Object.keys(errors).length > 0) {
 				// If there is any error, return the errors
 				return res.status(400).json({ errors });
 			}
 
-			// ------------------------ Input Validations ----------------------- //
-
-			const dataInDb = await prisma.users.findUnique({
-				// Prisma query to find existing email
-				where: {
-					email: email,
-				},
-			});
-
-			if (dataInDb) {
-				// Check if email already exists in database
-				return commonHelper.response(
-					res,
-					null,
-					403,
-					"Email is already registered !"
-				);
-			}
+			// ------------------------ Input & Duplication Validations ----------------------- //
 
 			const salt = await bcrypt.genSalt(saltRounds);
 			const hashPassword = await bcrypt.hash(password, salt);
 
-			const data = {
+			let data = {
 				username,
 				password: hashPassword,
 				phone_number,
@@ -89,12 +84,17 @@ const userController = {
 				avatar_url: USER_CONSTRAINT.DEFAULT_USER_AVATAR_URL, // Default avatar URL
 			};
 
-			const result = await prisma.users.create({
+			const insertIntoDB = await prisma.users.create({
 				// Insert new user using prisma
 				data: data,
 			});
 
-			return commonHelper.response(res, result, 201, "Register success !");
+			(delete data.password,
+				data.phone_number,
+				delete data.avatar_url,
+				delete data.gender); // Delete sensitive info from response
+
+			return commonHelper.response(res, data, 201, "Register success !");
 		} catch (error) {
 			console.error(error);
 			return commonHelper.response(res, null, 500, "Internal server error");
@@ -136,6 +136,14 @@ const userController = {
 				where: {
 					email: email,
 				},
+				select: {
+					id: true,
+					email: true,
+					password: true,
+					role: true,
+					avatar_url: true,
+					username: true,
+				},
 			});
 
 			if (!dataInDb) {
@@ -165,7 +173,8 @@ const userController = {
 			delete req.body.password;
 
 			const payload = {
-				// Make payload for JWT
+				// Make payload for JWT; include user id so middleware/controllers can authorize
+				id: dataInDb.id,
 				email: dataInDb.email,
 				role: dataInDb.role,
 			};
@@ -207,6 +216,17 @@ const userController = {
 				phone_number.length > USER_CONSTRAINT.PHONE_NUMBER_MAX_VARCHAR
 			) {
 				errors.length = "Input exceeding maximum characters !";
+			}
+
+			const duplicationCheck = await userDuplicationCheck(
+				email,
+				username,
+				phone_number
+			);
+
+			if (duplicationCheck > 0) {
+				errors.duplication =
+					"Failed to update profile: Email, username, or phone number is already exist !";
 			}
 
 			if (birthday) {

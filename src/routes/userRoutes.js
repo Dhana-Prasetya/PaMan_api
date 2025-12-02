@@ -1,8 +1,11 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const userController = require('../controllers/userControllers.js');
+const userController = require("../controllers/userControllers.js");
+const userAuth = require("../middleware/userAuth.js");
+const { upload } = require("../middleware/upload.js");
 
-router.post('/login', userController.Login);
-router.post('/register', userController.Register);
-
+router.post("/login", userController.Login);
+router.post("/register", userController.Register);
+router.patch("/edit-profile-data", userAuth, userController.EditProfileData);
+router.patch("/edit-avatar", userAuth, upload, userController.EditAvatar);
 module.exports = router;

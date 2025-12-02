@@ -2,9 +2,9 @@ const commonHelper = require("../helper/common.js");
 const { cloudinary } = require("../middleware/cloudinary.js");
 const { PrismaClient } = require("@prisma/client");
 const {
-	paginationConstraint,
-	idConstraint,
-	productConstraint,
+	PAGINATION_CONSTRAINT,
+	ID_CONSTRAINT,
+	PRODUCT_CONSTRAINT,
 } = require("../config/inputConstraint.js");
 const { getCloudinaryPublicId } = require("../helper/getCloudinaryPublicId.js");
 
@@ -15,26 +15,26 @@ const productController = {
 	getProductsPagination: async (req, res) => {
 		try {
 			let {
-				page = paginationConstraint.defaultPagePosition,
-				limit = paginationConstraint.defaultItemsPerPage,
+				page = PAGINATION_CONSTRAINT.DEFAULT_PAGE_POSITION,
+				limit = PAGINATION_CONSTRAINT.DEFAULT_ITEMS_PER_PAGE,
 			} = req.query; // Default pagination values
 
-			// Convert to number
-			page = parseInt(page);
-			limit = parseInt(limit);
+			// Check if page and limit are integers
+			const pageIntCheck = Number.isInteger(page);
+			const limitIntCheck = Number.isInteger(limit);
 
 			// ------------------------ Input Validations ----------------------- //
 
 			const errors = {};
-			if (isNaN(page) || page < 1) {
-				errors.page = "Page must be a positive integer !";
+			if (page < 1 || !pageIntCheck) {
+				errors.page = `Page must be a positive integer between 1 and ${ID_CONSTRAINT.MAX_INT} !`;
 			}
 			if (
-				isNaN(limit) ||
 				limit < 1 ||
-				limit > paginationConstraint.maxItemsPerPage
+				limit > PAGINATION_CONSTRAINT.MAX_ITEMS_PER_PAGE ||
+				!limitIntCheck
 			) {
-				errors.limit = `Limit must be a positive integer between 1 and ${paginationConstraint.maxItemsPerPage} !`;
+				errors.limit = `Limit must be a positive integer between 1 and ${PAGINATION_CONSTRAINT.MAX_ITEMS_PER_PAGE} !`;
 			}
 
 			if (Object.keys(errors).length > 0) {
@@ -46,13 +46,13 @@ const productController = {
 
 			const skip = (page - 1) * limit; // Calculate the number of records to skip based of page and limit
 
-			const results = await prisma.product.findMany({
+			const results = await prisma.products.findMany({
 				skip,
 				take: limit,
 				orderBy: { id: "asc" },
 			});
 
-			const total = await prisma.product.count();
+			const total = await prisma.products.count();
 			const totalPages = Math.ceil(total / limit);
 
 			const payload = {
@@ -84,19 +84,24 @@ const productController = {
 		// Get product by param id
 		try {
 			const id = Number(req.params.id);
+			const intIdCheck = Number.isInteger(id);
 
 			// ------------------------ Input Validations ----------------------- //
 
-			if (isNaN(id) || id <= idConstraint.minInt) {
+			if (
+				!intIdCheck ||
+				id < ID_CONSTRAINT.MIN_INT ||
+				id > ID_CONSTRAINT.MAX_INT
+			) {
 				return commonHelper.response(
 					res,
 					null,
 					400,
-					"ID need to be a positive integer !"
+					`ID need to be a positive integer between 1 and ${ID_CONSTRAINT.MAX_INT} !`
 				);
 			}
 
-			if (id > idConstraint.maxInt) {
+			if (id > ID_CONSTRAINT.MAX_INT) {
 				return commonHelper.response(
 					res,
 					null,
@@ -116,7 +121,7 @@ const productController = {
 
 			// ------------------------ Input Validations ----------------------- //
 
-			const results = await prisma.product.findUnique({
+			const results = await prisma.products.findUnique({
 				where: {
 					id: id,
 				},
@@ -146,7 +151,7 @@ const productController = {
 	insertProduct: async (req, res) => {
 		// Adding product
 		try {
-			const {
+			let {
 				name,
 				stock,
 				price,
@@ -154,6 +159,9 @@ const productController = {
 				category,
 				discounted_price = null,
 			} = req.body;
+
+			const intStockCheck = Number.isInteger(Number(stock));
+			const intPriceCheck = Number.isInteger(Number(price));
 
 			// ------------------------ Input Validations ----------------------- //
 
@@ -167,11 +175,9 @@ const productController = {
 				!description ||
 				!category
 			) {
-				return res
-					.status(400)
-					.json({
-						message: "All fields are required except ''discounted_price'' !",
-					});
+				return res.status(400).json({
+					message: "All fields are required except ''discounted_price'' !",
+				});
 			}
 
 			if (!isNaN(name)) {
@@ -179,19 +185,18 @@ const productController = {
 				errors.name = "Name must contain letters !";
 			}
 
-			if (isNaN(stock) || stock < productConstraint.minStock) {
+			if (!intStockCheck || stock < PRODUCT_CONSTRAINT.MIN_STOCK) {
 				// Input validation for stock
 				errors.stock = "Stock must be a positive integer or 0 !";
 			}
 
-			if (isNaN(price) || price < productConstraint.minPrice) {
+			if (
+				!intPriceCheck ||
+				price < PRODUCT_CONSTRAINT.MIN_PRICE ||
+				price > PRODUCT_CONSTRAINT.MAX_PRICE
+			) {
 				// Input validation for price
-				errors.price = "Price must be a positive integer or 0 !";
-			}
-
-			if (price > productConstraint.maxPrice) {
-				// Input validation for price
-				errors.price = "The price are too expensive !";
+				errors.price = `Price must be between ${PRODUCT_CONSTRAINT.MIN_PRICE} and ${PRODUCT_CONSTRAINT.MAX_PRICE} !`;
 			}
 
 			if (!isNaN(description)) {
@@ -199,18 +204,23 @@ const productController = {
 				errors.description = "Description must contain letters !";
 			}
 
-			if (!productConstraint.categoryEnum.includes(category)) {
+			if (!PRODUCT_CONSTRAINT.CATEGORY_ENUM.includes(category)) {
 				errors.category =
 					"Product category only support ''Beras'', ''Sayur'', or ''Buah''";
 			}
 
-			if (
-				discounted_price !== null &&
-				(isNaN(discounted_price) ||
-					discounted_price < productConstraint.minPrice)
-			) {
-				errors.discounted_price =
-					"Discounted price must be a positive integer or 0 !";
+			if (discounted_price !== null) {
+				// Check 1: Must be a number and an integer
+				const isInteger = Number.isInteger(discounted_price);
+
+				// Check 2: Must be non-negative (>= 0)
+				const isNonNegative = discounted_price >= PRODUCT_CONSTRAINT.MIN_PRICE;
+
+				// If it's NOT an integer OR it's negative, then it's invalid.
+				if (!isInteger || !isNonNegative) {
+					errors.discounted_price =
+						"Discounted price must be a non-negative integer!";
+				}
 			}
 
 			if (Object.keys(errors).length > 0) {
@@ -236,20 +246,31 @@ const productController = {
 				);
 			}
 
-			let customPublicId = await prisma.products.count(); // Generate custom public ID based on current product count
-			customPublicId = `product_${customPublicId + 1}`;
+			discounted_price = Number(discounted_price);
+
+			// Raw query to get next value of products_id_seq
+			const nextProductIdQuery = await prisma.$queryRaw`
+				SELECT last_value FROM products_id_seq;
+			`;
+
+			let customPublicId = nextProductIdQuery[0]; // Get the first object from the query result
+			customPublicId = customPublicId.last_value; // Extract the last_value property
+			customPublicId = Number(customPublicId) + 1; // Increment by 1 to get the next ID value
+
+			customPublicId = `${PRODUCT_CONSTRAINT.FILE_NAME_PREFIX}${customPublicId}`;
 
 			const result = await cloudinary.uploader.upload(req.file.path, {
-				public_id: `${productConstraint.defaultImageFolder}${customPublicId}`,
+				public_id: customPublicId,
+				folder: PRODUCT_CONSTRAINT.DEFAULT_IMAGE_FOLDER,
 			});
-			const photo = result.secure_url;
+			const photo_url = result.secure_url;
 
 			const results = await prisma.products.create({
 				data: {
 					name,
 					stock: Number(stock),
 					price: Number(price),
-					photo,
+					photo_url,
 					description,
 					category,
 					discounted_price,
@@ -268,7 +289,135 @@ const productController = {
 		}
 	},
 
-	updateProductPartial: async (req, res) => {
+	updateProductData: async (req, res) => {
+		// Update by id
+		try {
+			const id = Number(req.params.id);
+			const intIdCheck = Number.isInteger(id);
+
+			// ------------------------ ID Input Validations ----------------------- //
+
+			if (!id) {
+				return commonHelper.response(
+					res,
+					null,
+					400,
+					"Product ID is required !"
+				);
+			}
+
+			if (!intIdCheck || id < ID_CONSTRAINT.MIN_INT) {
+				return commonHelper.response(
+					res,
+					null,
+					400,
+					`ID need to be a positive integer !`
+				);
+			}
+
+			if (id > ID_CONSTRAINT.MAX_INT) {
+				return commonHelper.response(
+					res,
+					null,
+					400,
+					`ID exceeds maximum allowed value !`
+				);
+			}
+
+			// ------------------------ ID Input Validations ----------------------- //
+
+			const selectedProduct = await prisma.products.findUnique({
+				where: {
+					id: id,
+				},
+			});
+
+			if (!selectedProduct) {
+				return commonHelper.response(res, null, 404, "Product not found");
+			}
+
+			let {
+				name,
+				stock,
+				price,
+				description,
+				category,
+				discounted_price = null,
+			} = req.body;
+
+			// ------------------------ Input Validations ----------------------- //
+
+			const errors = {};
+
+			if (!name || !stock || !price || !description || !category) {
+				return res.status(400).json({
+					message: "All fields are required except ''discounted_price'' !",
+				});
+			}
+
+			if (!isNaN(name)) {
+				// Input validation (client always send as string)
+				errors.name = "Name must contain letters !";
+			}
+
+			if (isNaN(stock)) {
+				// Input validation (client always send as string)
+				errors.stock = "Stock must be a positive integer or 0 !";
+			}
+
+			if (isNaN(price)) {
+				// Input validation (client always send as string)
+				errors.price = "Price must be a positive integer or 0 !";
+			}
+
+			if (discounted_price !== null) {
+				// Check 1: Must be a number and an integer
+				const isInteger = Number.isInteger(discounted_price);
+
+				// Check 2: Must be non-negative (>= 0)
+				const isNonNegative = discounted_price >= PRODUCT_CONSTRAINT.MIN_PRICE;
+
+				// If it's NOT an integer OR it's negative, then it's invalid.
+				if (!isInteger || !isNonNegative) {
+					errors.discounted_price =
+						"Discounted price must be a non-negative integer!";
+				}
+			}
+
+			if (Object.keys(errors).length > 0) {
+				// If there is any error, return the errors
+				return res.status(400).json({ errors });
+			}
+
+			// ------------------------ Input Validations ----------------------- //
+
+			const results = await prisma.products.update({
+				// Update product in database
+				where: {
+					id: id,
+				},
+				data: {
+					name,
+					stock: Number(stock),
+					price: Number(price),
+					description,
+					discounted_price,
+				},
+			});
+
+			return commonHelper.response(
+				res,
+				results,
+				200,
+				"Product successfully updated"
+			);
+		} catch (error) {
+			console.error(error);
+			return commonHelper.response(res, null, 500, "Failed to update product");
+		}
+	},
+
+	updateProductImage: async (req, res) => {
 		// Update by id
 		try {
 			const id = Number(req.params.id);
@@ -284,7 +433,7 @@ const productController = {
 				);
 			}
 
-			if (id > idConstraint.maxInt) {
+			if (id > ID_CONSTRAINT.MAX_INT) {
 				return commonHelper.response(
 					res,
 					null,
@@ -304,7 +453,7 @@ const productController = {
 
 			// ------------------------ ID Input Validations ----------------------- //
 
-			const selectedProduct = await prisma.product.findUnique({
+			const selectedProduct = await prisma.products.findUnique({
 				where: {
 					id: id,
 				},
@@ -314,76 +463,24 @@ const productController = {
 				return commonHelper.response(res, null, 404, "Product not found");
 			}
 
-			const {
-				name,
-				stock,
-				price,
-				description,
-				category,
-				discounted_price = null,
-			} = req.body;
-
-			// ------------------------ Input Validations ----------------------- //
-
-			const errors = {};
-
-			if (
-				req.file === undefined ||
-				!name ||
-				!stock ||
-				!price ||
-				!description ||
-				!category
-			) {
-				return res
-					.status(400)
-					.json({
-						message: "All fields are required except ''discounted_price'' !",
-					});
-			}
-
-			if (!isNaN(name)) {
-				// Input validation (client always send as string)
-				errors.name = "Name must contain letters !";
-			}
-
-			if (isNaN(stock)) {
-				// Input validation (client always send as string)
-				errors.stock = "Stock must be a positive integer or 0 !";
-			}
-
-			if (isNaN(price)) {
-				// Input validation (client always send as string)
-				errors.price = "Price must be a positive integer or 0 !";
-			}
-
-			if (Object.keys(errors).length > 0) {
-				// If there is any error, return the errors
-				return res.status(400).json({ errors });
-			}
-
-			// ------------------------ Input Validations ----------------------- //
-
-			const cloudinaryPublicId = getCloudinaryPublicId(selectedProduct.photo); // Extract public ID from URL
+			const cloudinaryPublicId = getCloudinaryPublicId(
+				selectedProduct.photo_url
+			); // Extract public ID from URL
 
 			const updatedImage = await cloudinary.uploader.upload(req.file.path, {
 				public_id: cloudinaryPublicId, // Same public ID to overwrite existing image
 				overwrite: true,
 			});
 
-			const photo = updatedImage.secure_url; // Get the updated image URL
+			const photo_url = updatedImage.secure_url; // Get the updated image URL
 
-			const results = await prisma.product.update({
+			const results = await prisma.products.update({
 				// Update product in database
 				where: {
 					id: id,
 				},
 				data: {
-					name,
-					stock: Number(stock),
-					price: Number(price),
-					photo,
-					description,
+					photo_url,
 				},
 			});
 
@@ -403,10 +500,11 @@ const productController = {
 		// Delete product by id
 		try {
 			const id = Number(req.params.id);
+			const intIdCheck = Number.isInteger(id);
 
 			// ------------------------ Input Validations ----------------------- //
 
-			if (isNaN(id) || id <= 0) {
+			if (!intIdCheck || id < ID_CONSTRAINT.MIN_INT) {
 				return commonHelper.response(
 					res,
 					null,
@@ -415,7 +513,7 @@ const productController = {
 				);
 			}
 
-			if (id > idConstraint.maxInt) {
+			if (id > ID_CONSTRAINT.MAX_INT) {
 				return commonHelper.response(
 					res,
 					null,
@@ -435,24 +533,24 @@ const productController = {
 
 			// ------------------------ Input Validations ----------------------- //
 
-			const cloudinaryUrl = await prisma.product // Get current photo URL from database
+			const cloudinaryUrl = await prisma.products // Get current photo URL from database
 				.findUnique({
 					where: {
 						id: id,
 					},
 					select: {
-						photo: true,
+						photo_url: true,
 					},
 				});
 
-			const results = await prisma.product.delete({
+			const results = await prisma.products.delete({
 				// Delete product from database
 				where: {
 					id: id,
 				},
 			});
 
-			const cloudinaryPublicId = getCloudinaryPublicId(cloudinaryUrl.photo); // Extract public ID from URL
+			const cloudinaryPublicId = getCloudinaryPublicId(cloudinaryUrl.photo_url); // Extract public ID from URL
 
 			if (cloudinaryPublicId) {
 				await cloudinary.uploader.destroy(cloudinaryPublicId);

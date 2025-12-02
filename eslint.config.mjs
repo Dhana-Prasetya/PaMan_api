@@ -17,7 +17,6 @@ export default defineConfig([
 		rules: {
 			"no-unused-vars": "warn",
 			semi: ["warn", "always"],
-			"capitalized-comments": ["warn", "always"],
 		},
 	},
 ]);

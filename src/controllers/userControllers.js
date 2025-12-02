@@ -1,13 +1,15 @@
-const { generateToken } = require("../helper/auth");
+const { generateToken } = require("../helper/auth.js");
 const bcrypt = require("bcryptjs");
 const commonHelper = require("../helper/common.js");
 const zodValidator = require("zod");
 const { PrismaClient } = require("@prisma/client");
 const {
-	userConstraint,
-	stringConstraint,
+	USER_CONSTRAINT,
+	STRING_CONSTRAINT,
+	DATE_CONSTRAINT,
 } = require("../config/inputConstraint.js");
 
+const saltRounds = 10; // Standard salt rounds for bcrypt
 const prisma = new PrismaClient();
 
 const userController = {
@@ -35,17 +37,17 @@ const userController = {
 				errors.password = "Password need to be at least 8 characters long !";
 			}
 
-			if (!userConstraint.genderEnum.includes(gender)) {
+			if (!USER_CONSTRAINT.GENDER_ENUM.includes(gender)) {
 				errors.gender =
 					"Gender only support ''Laki'', ''Perempuan'', or ''Rahasia''";
 			}
 
 			if (
 				// Input length validator
-				username.length > stringConstraint.maxVarchar ||
-				password.length > stringConstraint.maxVarchar ||
-				email.length > stringConstraint.maxVarchar ||
-				phone_number.length > userConstraint.phoneNumberMaxVarchar
+				username.length > STRING_CONSTRAINT.MAX_VARCHAR ||
+				password.length > STRING_CONSTRAINT.MAX_VARCHAR ||
+				email.length > STRING_CONSTRAINT.MAX_VARCHAR ||
+				phone_number.length > USER_CONSTRAINT.PHONE_NUMBER_MAX_VARCHAR
 			) {
 				errors.length = "Input exceeding maximum characters !";
 			}
@@ -56,8 +58,6 @@ const userController = {
 			}
 
 			// ------------------------ Input Validations ----------------------- //
-
-			email = email.toLowerCase(); // Normalize email to lowercase
 
 			const dataInDb = await prisma.users.findUnique({
 				// Prisma query to find existing email
@@ -76,7 +76,7 @@ const userController = {
 				);
 			}
 
-			const salt = await bcrypt.genSalt(10);
+			const salt = await bcrypt.genSalt(saltRounds);
 			const hashPassword = await bcrypt.hash(password, salt);
 
 			const data = {
@@ -84,9 +84,9 @@ const userController = {
 				password: hashPassword,
 				phone_number,
 				gender,
-				email,
-				role: userConstraint.userRole, // 'user' as a role
-				avatar_url: userConstraint.defaultUserAvatarUrl, // Default avatar URL
+				email: email.toLowerCase(), // Normalize email to lowercase
+				role: USER_CONSTRAINT.USER_ROLE, // 'user' as a role
+				avatar_url: USER_CONSTRAINT.DEFAULT_USER_AVATAR_URL, // Default avatar URL
 			};
 
 			const result = await prisma.users.create({
@@ -120,8 +120,8 @@ const userController = {
 
 			if (
 				// Input length validator
-				email.length > stringConstraint.maxVarchar ||
-				password.length > stringConstraint.maxVarchar
+				email.length > STRING_CONSTRAINT.MAX_VARCHAR ||
+				password.length > STRING_CONSTRAINT.MAX_VARCHAR
 			) {
 				return res
 					.status(400)
@@ -176,6 +176,78 @@ const userController = {
 			res.send(error);
 		}
 	},
+
+	EditProfileData: async (req, res, next) => {
+		try {
+			let { username, phone_number, email, birthday = null, gender } = req.body;
+
+			// ------------------------ Input Validations ----------------------- //
+
+			const errors = {}; // Object to hold every client errors
+
+			if (!username || !email || !phone_number || !gender) {
+				// Check for empty fields
+				errors.field = "All fields are required except 'birthday'!";
+			}
+
+			const emailCheck = zodValidator.string().email(); // Email input validator
+			if (!emailCheck.safeParse(email).success) {
+				errors.email = "Invalid email format !";
+			}
+
+			if (!USER_CONSTRAINT.GENDER_ENUM.includes(gender)) {
+				errors.gender =
+					"Gender only support ''Laki'', ''Perempuan'', or ''Rahasia''";
+			}
+
+			if (
+				// Input length validator
+				username.length > STRING_CONSTRAINT.MAX_VARCHAR ||
+				email.length > STRING_CONSTRAINT.MAX_VARCHAR ||
+				phone_number.length > USER_CONSTRAINT.PHONE_NUMBER_MAX_VARCHAR
+			) {
+				errors.length = "Input exceeding maximum characters !";
+			}
+
+			if (birthday) {
+				if (
+					new Date(birthday) < DATE_CONSTRAINT.MIN_DATE ||
+					new Date(birthday) > DATE_CONSTRAINT.MAX_DATE
+				) {
+					errors.birthday = "Birthday date is out of valid range !";
+				}
+			}
+
+			if (Object.keys(errors).length > 0) {
+				// If there is any error, return the errors
+				return res.status(400).json({ errors });
+			}
+
+			// ------------------------ Input Validations ----------------------- //
+
+			const data = {
+				username,
+				phone_number,
+				gender,
+				email: email.toLowerCase(), // Normalize email to lowercase
+				birthday,
+			};
+
+			const result = await prisma.users.update({
+				where: {
+					id: req.user.id,
+				},
+				data: data,
+			});
+
+			return commonHelper.response(res, result, 201, "Edit profile success !");
+		} catch (error) {
+			console.error(error);
+			return commonHelper.response(res, null, 500, "Internal server error");
+		}
+	},
+
+	EditAvatar: async (req, res, next) => {},
 };
 
 module.exports = userController;

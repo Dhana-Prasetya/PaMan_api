@@ -40,6 +40,16 @@ model products {
   average_rating   Decimal?              @default(0.0) @db.Decimal(2, 1)
 }
 
+model admin {
+  id            String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  username      String    @unique @db.VarChar(255)
+  email         String    @unique @db.VarChar(255)
+  password      String    @db.VarChar(255)
+  role          String    @db.VarChar(10)
+  avatar_url    String?   @db.VarChar(255)
+  register_date DateTime? @default(now()) @db.Timestamptz(6)
+}
+
 enum gender_enum {
   Laki
   Perempuan

@@ -7,10 +7,13 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "server": "node index.js",
     "dev": "nodemon index.js",
-    "db-pull-from-db": "npx prisma db pull",
+    "pull-from-db": "npx prisma db pull",
     "db-save-prisma-schema": "npx prisma generate",
+    "update-schema-from-db": "npx prisma db pull && npx prisma generate",
     "prisma-setup": "npm i prisma --save-dev && npx prisma init && npm i @prisma/client",
-    "lint": "eslint"
+    "lint": "eslint",
+    "create-admin": "node createAdmin.js",
+    "delete-admin": "node deleteAdmin.js"
   },
   "author": "Dhana",
   "license": "ISC",
@@ -32,6 +35,7 @@
   "devDependencies": {
     "@eslint/js": "^9.39.1",
     "eslint": "^9.39.1",
+    "file-type": "^21.1.1",
     "globals": "^16.5.0",
     "morgan": "^1.10.1",
     "nodemon": "^3.1.10",

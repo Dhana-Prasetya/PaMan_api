@@ -39,9 +39,16 @@ const adminController = {
 
 			email = email.toLowerCase();
 
-			const dataInDb = await prisma.users.findUnique({
+			const dataInDb = await prisma.admin.findUnique({
 				where: {
 					email: email,
+				},
+				select: {
+					id: true,
+					email: true,
+					password: true,
+					role: true,
+					avatar_url: true,
 				},
 			});
 

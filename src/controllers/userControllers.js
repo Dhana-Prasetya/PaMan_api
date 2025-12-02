@@ -1,14 +1,13 @@
 const { generateToken } = require("../helper/auth.js");
 const bcrypt = require("bcryptjs");
 const commonHelper = require("../helper/common.js");
-const zodValidator = require("zod");
 const { PrismaClient } = require("@prisma/client");
-const {
-	USER_CONSTRAINT,
-	STRING_CONSTRAINT,
-	DATE_CONSTRAINT,
-} = require("../config/inputConstraint.js");
+const { cloudinary } = require("../middleware/cloudinary.js");
+const { USER_CONSTRAINT } = require("../config/inputConstraint.js");
 const userDuplicationCheck = require("../helper/userDuplicationCheck.js");
+const inputCheck = require("../helper/inputCheck.js");
+const { getCloudinaryPublicId } = require("../helper/getCloudinaryPublicId.js");
+const zodValidator = require("zod");
 
 const saltRounds = 10; // Standard salt rounds for bcrypt
 const prisma = new PrismaClient();
@@ -20,38 +19,22 @@ const userController = {
 
 			// ------------------------ Input & Duplication Validations ----------------------- //
 
-			const errors = {}; // Object to hold every client errors
+			let errors = {}; // Object to hold every client errors
 
 			if (!username || !password || !email || !phone_number || !gender) {
 				// Check for empty fields
-				errors.field = "All fields are required !";
+				return res.status(400).json({ message: "All fields are required !" });
 			}
 
-			const emailCheck = zodValidator.string().email(); // Email input validator
-			if (!emailCheck.safeParse(email).success) {
-				errors.email = "Invalid email format !";
-			}
+			errors = await inputCheck({
+				username,
+				email,
+				password,
+				phone_number,
+				gender,
+			});
 
-			const passwordCheck = zodValidator.string().min(8);
-
-			if (!passwordCheck.safeParse(password).success) {
-				errors.password = "Password need to be at least 8 characters long !";
-			}
-
-			if (!USER_CONSTRAINT.GENDER_ENUM.includes(gender)) {
-				errors.gender =
-					"Gender only support ''Laki'', ''Perempuan'', or ''Rahasia''";
-			}
-
-			if (
-				// Input length validator
-				username.length > STRING_CONSTRAINT.MAX_VARCHAR ||
-				password.length > STRING_CONSTRAINT.MAX_VARCHAR ||
-				email.length > STRING_CONSTRAINT.MAX_VARCHAR ||
-				phone_number.length > USER_CONSTRAINT.PHONE_NUMBER_MAX_VARCHAR
-			) {
-				errors.length = "Input exceeding maximum characters !";
-			}
+			console.log(errors);
 
 			const duplicationCheck = await userDuplicationCheck(
 				email,
@@ -59,24 +42,25 @@ const userController = {
 				phone_number
 			);
 
-			if (duplicationCheck > 0) {
-				errors.duplication =
-					"Email, username, or phone number is already registered !";
-			}
-
 			if (Object.keys(errors).length > 0) {
 				// If there is any error, return the errors
 				return res.status(400).json({ errors });
 			}
 
+			if (duplicationCheck > 0) {
+				return res.status(400).json({
+					message: "Email, username, or phone number is already registered !",
+				});
+			}
+
 			// ------------------------ Input & Duplication Validations ----------------------- //
 
 			const salt = await bcrypt.genSalt(saltRounds);
-			const hashPassword = await bcrypt.hash(password, salt);
+			const hashedPassword = await bcrypt.hash(password, salt);
 
 			let data = {
 				username,
-				password: hashPassword,
+				password: hashedPassword,
 				phone_number,
 				gender,
 				email: email.toLowerCase(), // Normalize email to lowercase
@@ -113,19 +97,16 @@ const userController = {
 					.json({ message: "Email and password are required !" });
 			}
 
-			const emailCheck = zodValidator.string().email(); // Email input validator
-			if (!emailCheck.safeParse(email).success) {
-				return res.status(400).json({ message: "Email are not valid !" });
-			}
+			let errors = {}; // Object to hold every client errors
 
-			if (
-				// Input length validator
-				email.length > STRING_CONSTRAINT.MAX_VARCHAR ||
-				password.length > STRING_CONSTRAINT.MAX_VARCHAR
-			) {
-				return res
-					.status(400)
-					.json({ message: "Email or password are too long !" });
+			errors = await inputCheck({
+				email,
+				password,
+			});
+
+			if (Object.keys(errors).length > 0) {
+				// If there is any error, return the errors
+				return res.status(400).json({ errors });
 			}
 
 			// ------------------------ Input Validations ----------------------- //
@@ -186,36 +167,58 @@ const userController = {
 		}
 	},
 
+	MyProfile: async (req, res, next) => {
+		try {
+			const myProfile = await prisma.users.findUnique({
+				where: {
+					id: req.user.id, // Get user id from userAuth middleware (token)
+				},
+				select: {
+					username: true,
+					email: true,
+					phone_number: true,
+					birthday: true,
+					gender: true,
+				},
+			});
+
+			return commonHelper.response(
+				res,
+				myProfile,
+				200,
+				"Get my profile success !"
+			);
+		} catch (error) {
+			console.error(error);
+			return commonHelper.response(res, null, 500, "Internal server error");
+		}
+	},
+
 	EditProfileData: async (req, res, next) => {
 		try {
 			let { username, phone_number, email, birthday = null, gender } = req.body;
 
 			// ------------------------ Input Validations ----------------------- //
 
-			const errors = {}; // Object to hold every client errors
+			let errors = {}; // Object to hold every client errors
 
 			if (!username || !email || !phone_number || !gender) {
-				// Check for empty fields
-				errors.field = "All fields are required except 'birthday'!";
+				return res
+					.status(400)
+					.json({ message: "All fields are required except 'birthday' !" });
 			}
 
-			const emailCheck = zodValidator.string().email(); // Email input validator
-			if (!emailCheck.safeParse(email).success) {
-				errors.email = "Invalid email format !";
-			}
+			errors = await inputCheck({
+				username,
+				email,
+				phone_number,
+				gender,
+				birthday,
+			});
 
-			if (!USER_CONSTRAINT.GENDER_ENUM.includes(gender)) {
-				errors.gender =
-					"Gender only support ''Laki'', ''Perempuan'', or ''Rahasia''";
-			}
-
-			if (
-				// Input length validator
-				username.length > STRING_CONSTRAINT.MAX_VARCHAR ||
-				email.length > STRING_CONSTRAINT.MAX_VARCHAR ||
-				phone_number.length > USER_CONSTRAINT.PHONE_NUMBER_MAX_VARCHAR
-			) {
-				errors.length = "Input exceeding maximum characters !";
+			if (Object.keys(errors).length > 0) {
+				// If there is any error, return the errors
+				return res.status(400).json({ errors });
 			}
 
 			const duplicationCheck = await userDuplicationCheck(
@@ -225,22 +228,9 @@ const userController = {
 			);
 
 			if (duplicationCheck > 0) {
-				errors.duplication =
-					"Failed to update profile: Email, username, or phone number is already exist !";
-			}
-
-			if (birthday) {
-				if (
-					new Date(birthday) < DATE_CONSTRAINT.MIN_DATE ||
-					new Date(birthday) > DATE_CONSTRAINT.MAX_DATE
-				) {
-					errors.birthday = "Birthday date is out of valid range !";
-				}
-			}
-
-			if (Object.keys(errors).length > 0) {
-				// If there is any error, return the errors
-				return res.status(400).json({ errors });
+				return res.status(400).json({
+					message: "Email, username, or phone number is already registered !",
+				});
 			}
 
 			// ------------------------ Input Validations ----------------------- //
@@ -255,7 +245,7 @@ const userController = {
 
 			const result = await prisma.users.update({
 				where: {
-					id: req.user.id,
+					id: req.user.id, // Get user id from userAuth middleware (token)
 				},
 				data: data,
 			});
@@ -267,7 +257,155 @@ const userController = {
 		}
 	},
 
-	EditAvatar: async (req, res, next) => {},
+	EditAvatar: async (req, res, next) => {
+		try {
+			if (req.file === undefined) {
+				return commonHelper.response(
+					res,
+					null,
+					400,
+					"Avatar file is required !"
+				);
+			}
+
+			const avatarInDb = await prisma.users.findUnique({
+				where: {
+					id: req.user.id, // Get user id from userAuth middleware (token)
+				},
+				select: {
+					avatar_url: true,
+				},
+			});
+
+			let photo_url;
+
+			if (avatarInDb.avatar_url === USER_CONSTRAINT.DEFAULT_USER_AVATAR_URL) {
+				// If user still has default avatar, upload new avatar
+				let customPublicId = `${USER_CONSTRAINT.FILE_NAME_PREFIX}${req.user.id}`;
+
+				const updatingDefaultAvatar = await cloudinary.uploader.upload(
+					req.file.path,
+					{
+						public_id: customPublicId,
+						folder: USER_CONSTRAINT.DEFAULT_IMAGE_FOLDER,
+					}
+				);
+
+				photo_url = updatingDefaultAvatar.secure_url; // Get the updated image URL
+			} else {
+				const cloudinaryPublicId = getCloudinaryPublicId(avatarInDb.avatar_url); // Extract public ID from existing custom avatar URL
+
+				const updatingCustomAvatar = await cloudinary.uploader.upload(
+					req.file.path,
+					{
+						public_id: cloudinaryPublicId, // Same public ID to overwrite existing image
+						overwrite: true,
+					}
+				);
+
+				photo_url = updatingCustomAvatar.secure_url; // Get the updated image URL
+			}
+
+			const result = await prisma.users.update({
+				where: {
+					id: req.user.id, // Get user id from userAuth middleware (token)
+				},
+				data: {
+					avatar_url: photo_url,
+				},
+			});
+
+			return commonHelper.response(res, result, 201, "Edit avatar success !");
+		} catch (error) {
+			console.error(error);
+			return commonHelper.response(res, null, 500, "Internal server error");
+		}
+	},
+
+	ChangePassword: async (req, res, next) => {
+		try {
+			let { old_password, new_password, new_password_confirmation } = req.body;
+
+			// ------------------------ Input Validations ----------------------- //
+
+			if (!old_password || !new_password || !new_password_confirmation) {
+				return res.status(400).json({ message: "All fields are required !" });
+			}
+
+			let errors = {}; // Object to hold every client errors
+
+			const passwordCheck = zodValidator.string().min(8);
+
+			if (
+				!passwordCheck.safeParse(old_password).success ||
+				!passwordCheck.safeParse(new_password).success ||
+				!passwordCheck.safeParse(new_password_confirmation).success
+			) {
+				errors.password =
+					"Every password need to be at least 8 characters long !";
+			}
+
+			// ------------------------ Input Validations ----------------------- //
+
+			const passwordInDb = await prisma.users.findUnique({
+				where: {
+					id: req.user.id, // Get user id from userAuth middleware (token)
+				},
+				select: { password: true },
+			});
+
+			const oldPasswordValidation = await bcrypt.compare(
+				old_password,
+				passwordInDb.password
+			);
+
+			if (!oldPasswordValidation) {
+				// Validating old password
+				return commonHelper.response(
+					res,
+					null,
+					401,
+					"The old password incorrect !"
+				);
+			}
+
+			if (new_password !== new_password_confirmation) {
+				// Validating new password confirmation
+				return commonHelper.response(
+					res,
+					null,
+					401,
+					"The new password are mismatch !"
+				);
+			}
+
+			const salt = await bcrypt.genSalt(saltRounds);
+			const hashedPassword = await bcrypt.hash(new_password, salt);
+
+			const result = await prisma.users.update({
+				where: {
+					id: req.user.id, // Get user id from userAuth middleware (token)
+				},
+				data: {
+					password: hashedPassword,
+				},
+			});
+
+			old_password = null; // Clear sensitive data
+			new_password = null;
+			new_password_confirmation = null;
+
+			return commonHelper.response(
+				res,
+				result,
+				201,
+				"Change password success !"
+			);
+		} catch (error) {
+			console.error(error);
+			return commonHelper.response(res, null, 500, "Internal server error");
+		}
+	},
 };
 
 module.exports = userController;

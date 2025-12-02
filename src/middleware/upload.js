@@ -28,8 +28,13 @@ const multerUploadFile = multer({
 const upload = (req, res, next) => {
 	// Middleware function to handle file upload
 
-	const multerSingle = multerUploadFile.single("photo");
-	multerSingle(req, res, (err) => {
+	// Accept either `photo` or `avatar` as the single file field.
+	const multerHandler = multerUploadFile.fields([
+		{ name: "photo", maxCount: 1 },
+		{ name: "avatar", maxCount: 1 },
+	]);
+
+	multerHandler(req, res, (err) => {
 		if (err) {
 			// Map Multer errors to appropriate HTTP status codes.
 			if (err.code === "LIMIT_FILE_SIZE") {
@@ -43,11 +48,34 @@ const upload = (req, res, next) => {
 			if (err.code === "INVALID_FILE_TYPE") {
 				return response(res, null, 415, err.message || "Invalid file type");
 			}
+			// Handle unexpected field errors with a clearer message
+			if (
+				err.code === "LIMIT_UNEXPECTED_FILE" ||
+				/Unexpected field/i.test(err.message)
+			) {
+				return response(
+					res,
+					null,
+					400,
+					"Unexpected field. Upload field must be 'photo' or 'avatar'"
+				);
+			}
 			// Fallback
 			return response(res, null, 400, err.message || "File upload error");
-		} else {
-			next();
 		}
+
+		// Normalize multer `.fields()` output to `req.file` so controllers
+		// that expect `req.file` (like EditAvatar) continue to work.
+		if (!req.file) {
+			if (req.files) {
+				if (req.files.photo && req.files.photo.length > 0)
+					req.file = req.files.photo[0];
+				else if (req.files.avatar && req.files.avatar.length > 0)
+					req.file = req.files.avatar[0];
+			}
+		}
+
+		next();
 	});
 };
 

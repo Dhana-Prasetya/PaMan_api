@@ -24,6 +24,8 @@ const USER_CONSTRAINT = {
 	DEFAULT_USER_AVATAR_URL: process.env.CLOUDINARY_DEFAULT_USER_AVATAR_URL,
 	USER_ROLE: "user",
 	DEFAULT_IMAGE_FOLDER: "user_avatar",
+	MIN_USERNAME_LENGTH: 4, // Minimum username length
+	FILE_NAME_PREFIX: "user_id-",
 };
 
 const ADMIN_CONSTRAINT = {
@@ -33,6 +35,7 @@ const ADMIN_CONSTRAINT = {
 
 const STRING_CONSTRAINT = {
 	MAX_VARCHAR: 255, // Maximum length for VARCHAR in databases
+	MIN_VARCHAR: 1, // Minimum length for VARCHAR
 };
 
 const DATE_CONSTRAINT = {

@@ -27,6 +27,7 @@
     "http-errors": "^2.0.0",
     "jsonwebtoken": "^9.0.2",
     "multer": "^2.0.2",
+    "serverless-http": "^4.0.0",
     "uuid": "^13.0.0",
     "zod": "^4.1.12"
   },

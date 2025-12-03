@@ -73,6 +73,7 @@ app.use((err, req, res, next) => {
 const ProductRouter = require("./src/routes/productRoutes");
 const UserRouter = require("./src/routes/userRoutes");
 const AdminRouter = require("./src/routes/adminRoutes");
+const ServerlessHttp = require("serverless-http");
 
 app.use("/api/products", ProductRouter); // Prefix all routes/middleware in product.js in routes with '/products'
 app.use("/api/user", UserRouter); // Prefix all routes/middleware in user.js in routes with '/users'
@@ -84,6 +85,11 @@ app.use("/", (req, res) => {
 		message: "Welcome to the Panenmania API ! This is the default route",
 	});
 });
+
+// 🌟 CORRECT EXPORT for the serverless runtime
+module.exports.handler = ServerlessHttp(app);
+// OR if you configured the handler name to be 'app':
+// module.exports.app = serverless(app);
 
 // app.listen(port, () => {
 // 	// Port listening

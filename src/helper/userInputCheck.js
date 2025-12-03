@@ -4,6 +4,7 @@ const {
 	STRING_CONSTRAINT,
 	DATE_CONSTRAINT,
 } = require("../config/inputConstraint.js");
+const isValidYYYYMMDD = require("./isValidYYYYMMDD.js");
 
 async function inputCheck({
 	username = null,
@@ -62,6 +63,15 @@ async function inputCheck({
 	}
 
 	if (birthday) {
+		const dateCheck = isValidYYYYMMDD(birthday);
+
+		if (!dateCheck) {
+			// return boolean
+			errors.birthday = "Birthday date format is invalid !";
+		}
+
+		birthday = new Date(birthday);
+
 		if (
 			new Date(birthday) < DATE_CONSTRAINT.MIN_DATE ||
 			new Date(birthday) > DATE_CONSTRAINT.MAX_DATE

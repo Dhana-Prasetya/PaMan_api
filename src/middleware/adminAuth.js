@@ -14,7 +14,7 @@ const adminAuth = (req, res, next) => {
 			}
 
 			// Provide a `req.user` alias for handlers that expect it
-			req.user = decoded;
+			req.admin = decoded;
 
 			next();
 		} else {

@@ -9,4 +9,6 @@ router.post("/register", userController.Register);
 router.get("/my-profile", userAuth, userController.MyProfile);
 router.patch("/edit-profile-data", userAuth, userController.EditProfileData);
 router.patch("/edit-avatar", userAuth, upload, userController.EditAvatar);
+router.patch("/change-password", userAuth, userController.ChangePassword);
+router.delete("/delete-account", userAuth, userController.DeleteMyAccount);
 module.exports = router;

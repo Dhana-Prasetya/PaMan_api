@@ -7,12 +7,16 @@ const {
 	PRODUCT_CONSTRAINT,
 } = require("../config/inputConstraint.js");
 const { getCloudinaryPublicId } = require("../helper/getCloudinaryPublicId.js");
+const productIdCheck = require("../helper/productIdCheck.js");
+const productInputCheck = require("../helper/productInputCheck.js");
+const adminAuthCheck = require("../helper/adminAuthCheck.js");
+const adminIdCheck = require("../helper/adminAuthCheck.js");
 
 const prisma = new PrismaClient();
 
 const productController = {
 	// API methods for products
-	getProductsPagination: async (req, res) => {
+	GetProductsPagination: async (req, res) => {
 		try {
 			let {
 				page = PAGINATION_CONSTRAINT.DEFAULT_PAGE_POSITION,
@@ -20,6 +24,9 @@ const productController = {
 			} = req.query; // Default pagination values
 
 			// Check if page and limit are integers
+			page = Number(page);
+			limit = Number(limit);
+
 			const pageIntCheck = Number.isInteger(page);
 			const limitIntCheck = Number.isInteger(limit);
 
@@ -80,43 +87,19 @@ const productController = {
 		}
 	},
 
-	getDetailProduct: async (req, res) => {
+	GetDetailProduct: async (req, res) => {
 		// Get product by param id
 		try {
 			const id = Number(req.params.id);
-			const intIdCheck = Number.isInteger(id);
 
 			// ------------------------ Input Validations ----------------------- //
 
-			if (
-				!intIdCheck ||
-				id < ID_CONSTRAINT.MIN_INT ||
-				id > ID_CONSTRAINT.MAX_INT
-			) {
-				return commonHelper.response(
-					res,
-					null,
-					400,
-					`ID need to be a positive integer between 1 and ${ID_CONSTRAINT.MAX_INT} !`
-				);
-			}
+			let idErrors = productIdCheck(id);
 
-			if (id > ID_CONSTRAINT.MAX_INT) {
-				return commonHelper.response(
-					res,
-					null,
-					400,
-					"ID exceeds maximum allowed value !"
-				);
-			}
+			console.log(idErrors);
 
-			if (!id) {
-				return commonHelper.response(
-					res,
-					null,
-					400,
-					"Product ID is required !"
-				);
+			if (idErrors !== false) {
+				return commonHelper.response(res, null, 400, idErrors);
 			}
 
 			// ------------------------ Input Validations ----------------------- //
@@ -148,9 +131,15 @@ const productController = {
 		}
 	},
 
-	insertProduct: async (req, res) => {
+	InsertProduct: async (req, res) => {
 		// Adding product
 		try {
+			const isAdminValidated = await adminIdCheck(req.admin.id); // Boolean check if admin id from adminAuth middleware is valid
+
+			if (!isAdminValidated) {
+				return commonHelper.response(res, null, 403, "Unauthorized access");
+			}
+
 			let {
 				name,
 				stock,
@@ -160,12 +149,9 @@ const productController = {
 				discounted_price = null,
 			} = req.body;
 
-			const intStockCheck = Number.isInteger(Number(stock));
-			const intPriceCheck = Number.isInteger(Number(price));
-
 			// ------------------------ Input Validations ----------------------- //
 
-			const errors = {};
+			let errors = {};
 
 			if (
 				req.file === undefined ||
@@ -180,48 +166,14 @@ const productController = {
 				});
 			}
 
-			if (!isNaN(name)) {
-				// Input validation (client always send as string)
-				errors.name = "Name must contain letters !";
-			}
-
-			if (!intStockCheck || stock < PRODUCT_CONSTRAINT.MIN_STOCK) {
-				// Input validation for stock
-				errors.stock = "Stock must be a positive integer or 0 !";
-			}
-
-			if (
-				!intPriceCheck ||
-				price < PRODUCT_CONSTRAINT.MIN_PRICE ||
-				price > PRODUCT_CONSTRAINT.MAX_PRICE
-			) {
-				// Input validation for price
-				errors.price = `Price must be between ${PRODUCT_CONSTRAINT.MIN_PRICE} and ${PRODUCT_CONSTRAINT.MAX_PRICE} !`;
-			}
-
-			if (!isNaN(description)) {
-				// Input validation (client always send as string)
-				errors.description = "Description must contain letters !";
-			}
-
-			if (!PRODUCT_CONSTRAINT.CATEGORY_ENUM.includes(category)) {
-				errors.category =
-					"Product category only support ''Beras'', ''Sayur'', or ''Buah''";
-			}
-
-			if (discounted_price !== null) {
-				// Check 1: Must be a number and an integer
-				const isInteger = Number.isInteger(discounted_price);
-
-				// Check 2: Must be non-negative (>= 0)
-				const isNonNegative = discounted_price >= PRODUCT_CONSTRAINT.MIN_PRICE;
-
-				// If it's NOT an integer OR it's negative, then it's invalid.
-				if (!isInteger || !isNonNegative) {
-					errors.discounted_price =
-						"Discounted price must be a non-negative integer!";
-				}
-			}
+			errors = await productInputCheck({
+				name,
+				stock,
+				price,
+				description,
+				category,
+				discounted_price,
+			});
 
 			if (Object.keys(errors).length > 0) {
 				// If there is any error, return the errors
@@ -246,7 +198,10 @@ const productController = {
 				);
 			}
 
-			discounted_price = Number(discounted_price);
+			if (discounted_price) {
+				// If discounted_price provided, convert to Number
+				discounted_price = Number(discounted_price);
+			}
 
 			// Raw query to get next value of products_id_seq
 			const nextProductIdQuery = await prisma.$queryRaw`
@@ -289,11 +244,16 @@ const productController = {
 		}
 	},
 
-	updateProductData: async (req, res) => {
+	UpdateProductData: async (req, res) => {
 		// Update by id
 		try {
+			const isAdminValidated = await adminIdCheck(req.admin.id); // Boolean check if admin id from adminAuth middleware is valid
+
+			if (!isAdminValidated) {
+				return commonHelper.response(res, null, 403, "Unauthorized access");
+			}
+
 			const id = Number(req.params.id);
-			const intIdCheck = Number.isInteger(id);
 
 			// ------------------------ ID Input Validations ----------------------- //
 
@@ -306,22 +266,11 @@ const productController = {
 				);
 			}
 
-			if (!intIdCheck || id < ID_CONSTRAINT.MIN_INT) {
-				return commonHelper.response(
-					res,
-					null,
-					400,
-					`ID need to be a positive integer !`
-				);
-			}
+			let idErrors = productIdCheck(id);
 
-			if (id > ID_CONSTRAINT.MAX_INT) {
-				return commonHelper.response(
-					res,
-					null,
-					400,
-					`ID exceeds maximum allowed value !`
-				);
+			if (idErrors > 0) {
+				// If there is any error, return the errors
+				return commonHelper.response(res, null, 400, "Invalid product ID !");
 			}
 
 			// ------------------------ ID Input Validations ----------------------- //
@@ -347,42 +296,29 @@ const productController = {
 
 			// ------------------------ Input Validations ----------------------- //
 
-			const errors = {};
+			let errors = {};
 
-			if (!name || !stock || !price || !description || !category) {
+			if (
+				req.file === undefined ||
+				!name ||
+				!stock ||
+				!price ||
+				!description ||
+				!category
+			) {
 				return res.status(400).json({
 					message: "All fields are required except ''discounted_price'' !",
 				});
 			}
 
-			if (!isNaN(name)) {
-				// Input validation (client always send as string)
-				errors.name = "Name must contain letters !";
-			}
-
-			if (isNaN(stock)) {
-				// Input validation (client always send as string)
-				errors.stock = "Stock must be a positive integer or 0 !";
-			}
-
-			if (isNaN(price)) {
-				// Input validation (client always send as string)
-				errors.price = "Price must be a positive integer or 0 !";
-			}
-
-			if (discounted_price !== null) {
-				// Check 1: Must be a number and an integer
-				const isInteger = Number.isInteger(discounted_price);
-
-				// Check 2: Must be non-negative (>= 0)
-				const isNonNegative = discounted_price >= PRODUCT_CONSTRAINT.MIN_PRICE;
-
-				// If it's NOT an integer OR it's negative, then it's invalid.
-				if (!isInteger || !isNonNegative) {
-					errors.discounted_price =
-						"Discounted price must be a non-negative integer!";
-				}
-			}
+			errors = await productInputCheck({
+				name,
+				stock,
+				price,
+				description,
+				category,
+				discounted_price,
+			});
 
 			if (Object.keys(errors).length > 0) {
 				// If there is any error, return the errors
@@ -390,6 +326,11 @@ const productController = {
 			}
 
 			// ------------------------ Input Validations ----------------------- //
+
+			if (discounted_price) {
+				// If discounted_price provided, convert to Number
+				discounted_price = Number(discounted_price);
+			}
 
 			const results = await prisma.products.update({
 				// Update product in database
@@ -417,30 +358,18 @@ const productController = {
 		}
 	},
 
-	updateProductImage: async (req, res) => {
+	UpdateProductImage: async (req, res) => {
 		// Update by id
 		try {
+			const isAdminValidated = await adminIdCheck(req.admin.id); // Boolean check if admin id from adminAuth middleware is valid
+
+			if (!isAdminValidated) {
+				return commonHelper.response(res, null, 403, "Unauthorized access");
+			}
+
 			const id = Number(req.params.id);
 
 			// ------------------------ ID Input Validations ----------------------- //
-
-			if (isNaN(id) || id <= 0) {
-				return commonHelper.response(
-					res,
-					null,
-					400,
-					"ID need to be a positive integer !"
-				);
-			}
-
-			if (id > ID_CONSTRAINT.MAX_INT) {
-				return commonHelper.response(
-					res,
-					null,
-					400,
-					"ID exceeds maximum allowed value !"
-				);
-			}
 
 			if (!id) {
 				return commonHelper.response(
@@ -449,6 +378,13 @@ const productController = {
 					400,
 					"Product ID is required !"
 				);
+			}
+
+			let idErrors = productIdCheck(id);
+
+			if (idErrors > 0) {
+				// If there is any error, return the errors
+				return commonHelper.response(res, null, 400, "Invalid product ID !");
 			}
 
 			// ------------------------ ID Input Validations ----------------------- //
@@ -496,31 +432,18 @@ const productController = {
 		}
 	},
 
-	deleteProduct: async (req, res) => {
+	DeleteProduct: async (req, res) => {
 		// Delete product by id
 		try {
+			const isAdminValidated = await adminIdCheck(req.admin.id); // Boolean check if admin id from adminAuth middleware is valid
+
+			if (!isAdminValidated) {
+				return commonHelper.response(res, null, 403, "Unauthorized access");
+			}
+
 			const id = Number(req.params.id);
-			const intIdCheck = Number.isInteger(id);
 
 			// ------------------------ Input Validations ----------------------- //
-
-			if (!intIdCheck || id < ID_CONSTRAINT.MIN_INT) {
-				return commonHelper.response(
-					res,
-					null,
-					400,
-					"ID need to be a positive integer !"
-				);
-			}
-
-			if (id > ID_CONSTRAINT.MAX_INT) {
-				return commonHelper.response(
-					res,
-					null,
-					400,
-					"ID exceeds maximum allowed value !"
-				);
-			}
 
 			if (!id) {
 				return commonHelper.response(
@@ -531,9 +454,16 @@ const productController = {
 				);
 			}
 
+			let idErrors = productIdCheck(id);
+
+			if (idErrors > 0) {
+				// If there is any error, return the errors
+				return commonHelper.response(res, null, 400, "Invalid product ID !");
+			}
+
 			// ------------------------ Input Validations ----------------------- //
 
-			const cloudinaryUrl = await prisma.products // Get current photo URL from database
+			const dataInDb = await prisma.products // Get current photo URL from database
 				.findUnique({
 					where: {
 						id: id,
@@ -550,7 +480,7 @@ const productController = {
 				},
 			});
 
-			const cloudinaryPublicId = getCloudinaryPublicId(cloudinaryUrl.photo_url); // Extract public ID from URL
+			const cloudinaryPublicId = getCloudinaryPublicId(dataInDb.photo_url); // Extract public ID from URL
 
 			if (cloudinaryPublicId) {
 				await cloudinary.uploader.destroy(cloudinaryPublicId);

@@ -80,6 +80,7 @@ const adminController = {
 
 			const payload = {
 				// Make payload for JWT
+				id: dataInDb.id,
 				email: dataInDb.email,
 				role: dataInDb.role,
 			};

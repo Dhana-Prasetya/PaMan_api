@@ -5,7 +5,7 @@ const { PrismaClient } = require("@prisma/client");
 const { cloudinary } = require("../middleware/cloudinary.js");
 const { USER_CONSTRAINT } = require("../config/inputConstraint.js");
 const userDuplicationCheck = require("../helper/userDuplicationCheck.js");
-const inputCheck = require("../helper/inputCheck.js");
+const userInputCheck = require("../helper/userInputCheck.js");
 const { getCloudinaryPublicId } = require("../helper/getCloudinaryPublicId.js");
 const zodValidator = require("zod");
 
@@ -26,7 +26,7 @@ const userController = {
 				return res.status(400).json({ message: "All fields are required !" });
 			}
 
-			errors = await inputCheck({
+			errors = await userInputCheck({
 				username,
 				email,
 				password,
@@ -34,18 +34,16 @@ const userController = {
 				gender,
 			});
 
-			console.log(errors);
+			if (Object.keys(errors).length > 0) {
+				// If there is any error, return the errors
+				return res.status(400).json({ errors });
+			}
 
 			const duplicationCheck = await userDuplicationCheck(
 				email,
 				username,
 				phone_number
 			);
-
-			if (Object.keys(errors).length > 0) {
-				// If there is any error, return the errors
-				return res.status(400).json({ errors });
-			}
 
 			if (duplicationCheck > 0) {
 				return res.status(400).json({
@@ -99,7 +97,7 @@ const userController = {
 
 			let errors = {}; // Object to hold every client errors
 
-			errors = await inputCheck({
+			errors = await userInputCheck({
 				email,
 				password,
 			});
@@ -182,6 +180,15 @@ const userController = {
 				},
 			});
 
+			if (!myProfile) {
+				return commonHelper.response(
+					res,
+					null,
+					403,
+					"User not authenticated !"
+				);
+			}
+
 			return commonHelper.response(
 				res,
 				myProfile,
@@ -198,6 +205,22 @@ const userController = {
 		try {
 			let { username, phone_number, email, birthday = null, gender } = req.body;
 
+			const myProfile = await prisma.users.findUnique({
+				where: {
+					id: req.user.id, // Get user id from userAuth middleware (token)
+				},
+				select: { id: true },
+			});
+
+			if (!myProfile) {
+				return commonHelper.response(
+					res,
+					null,
+					403,
+					"User not authenticated !"
+				);
+			}
+
 			// ------------------------ Input Validations ----------------------- //
 
 			let errors = {}; // Object to hold every client errors
@@ -208,7 +231,7 @@ const userController = {
 					.json({ message: "All fields are required except 'birthday' !" });
 			}
 
-			errors = await inputCheck({
+			errors = await userInputCheck({
 				username,
 				email,
 				phone_number,
@@ -235,6 +258,11 @@ const userController = {
 
 			// ------------------------ Input Validations ----------------------- //
 
+			if (birthday) {
+				// If birthday valid, convert to Date object
+				birthday = new Date(birthday);
+			}
+
 			const data = {
 				username,
 				phone_number,
@@ -250,7 +278,7 @@ const userController = {
 				data: data,
 			});
 
-			return commonHelper.response(res, result, 201, "Edit profile success !");
+			return commonHelper.response(res, data, 201, "Edit profile success !");
 		} catch (error) {
 			console.error(error);
 			return commonHelper.response(res, null, 500, "Internal server error");
@@ -259,6 +287,22 @@ const userController = {
 
 	EditAvatar: async (req, res, next) => {
 		try {
+			const myProfile = await prisma.users.findUnique({
+				where: {
+					id: req.user.id, // Get user id from userAuth middleware (token)
+				},
+				select: { id: true, avatar_url: true },
+			});
+
+			if (!myProfile) {
+				return commonHelper.response(
+					res,
+					null,
+					403,
+					"User not authenticated !"
+				);
+			}
+
 			if (req.file === undefined) {
 				return commonHelper.response(
 					res,
@@ -268,18 +312,9 @@ const userController = {
 				);
 			}
 
-			const avatarInDb = await prisma.users.findUnique({
-				where: {
-					id: req.user.id, // Get user id from userAuth middleware (token)
-				},
-				select: {
-					avatar_url: true,
-				},
-			});
-
 			let photo_url;
 
-			if (avatarInDb.avatar_url === USER_CONSTRAINT.DEFAULT_USER_AVATAR_URL) {
+			if (myProfile.avatar_url === USER_CONSTRAINT.DEFAULT_USER_AVATAR_URL) {
 				// If user still has default avatar, upload new avatar
 				let customPublicId = `${USER_CONSTRAINT.FILE_NAME_PREFIX}${req.user.id}`;
 
@@ -293,7 +328,7 @@ const userController = {
 
 				photo_url = updatingDefaultAvatar.secure_url; // Get the updated image URL
 			} else {
-				const cloudinaryPublicId = getCloudinaryPublicId(avatarInDb.avatar_url); // Extract public ID from existing custom avatar URL
+				const cloudinaryPublicId = getCloudinaryPublicId(myProfile.avatar_url); // Extract public ID from existing custom avatar URL
 
 				const updatingCustomAvatar = await cloudinary.uploader.upload(
 					req.file.path,
@@ -306,16 +341,23 @@ const userController = {
 				photo_url = updatingCustomAvatar.secure_url; // Get the updated image URL
 			}
 
+			const newPhotoUrl = {
+				avatar_url: photo_url,
+			};
+
 			const result = await prisma.users.update({
 				where: {
 					id: req.user.id, // Get user id from userAuth middleware (token)
 				},
-				data: {
-					avatar_url: photo_url,
-				},
+				data: newPhotoUrl,
 			});
 
-			return commonHelper.response(res, result, 201, "Edit avatar success !");
+			return commonHelper.response(
+				res,
+				newPhotoUrl,
+				201,
+				"Edit avatar success !"
+			);
 		} catch (error) {
 			console.error(error);
 			return commonHelper.response(res, null, 500, "Internal server error");
@@ -325,6 +367,22 @@ const userController = {
 	ChangePassword: async (req, res, next) => {
 		try {
 			let { old_password, new_password, new_password_confirmation } = req.body;
+
+			const myProfile = await prisma.users.findUnique({
+				where: {
+					id: req.user.id, // Get user id from userAuth middleware (token)
+				},
+				select: { password: true },
+			});
+
+			if (!myProfile) {
+				return commonHelper.response(
+					res,
+					null,
+					403,
+					"User not authenticated !"
+				);
+			}
 
 			// ------------------------ Input Validations ----------------------- //
 
@@ -347,16 +405,9 @@ const userController = {
 
 			// ------------------------ Input Validations ----------------------- //
 
-			const passwordInDb = await prisma.users.findUnique({
-				where: {
-					id: req.user.id, // Get user id from userAuth middleware (token)
-				},
-				select: { password: true },
-			});
-
 			const oldPasswordValidation = await bcrypt.compare(
 				old_password,
-				passwordInDb.password
+				myProfile.password
 			);
 
 			if (!oldPasswordValidation) {
@@ -369,12 +420,21 @@ const userController = {
 				);
 			}
 
+			if (new_password === old_password) {
+				return commonHelper.response(
+					res,
+					null,
+					400,
+					"The new password must be different from the old password !"
+				);
+			}
+
 			if (new_password !== new_password_confirmation) {
 				// Validating new password confirmation
 				return commonHelper.response(
 					res,
 					null,
-					401,
+					400,
 					"The new password are mismatch !"
 				);
 			}
@@ -394,12 +454,85 @@ const userController = {
 			old_password = null; // Clear sensitive data
 			new_password = null;
 			new_password_confirmation = null;
+			delete result.password; // Remove sensitive data from response
+
+			return commonHelper.response(res, null, 201, "Change password success !");
+		} catch (error) {
+			console.error(error);
+			return commonHelper.response(res, null, 500, "Internal server error");
+		}
+	},
+
+	DeleteMyAccount: async (req, res, next) => {
+		try {
+			let { email, password } = req.body; // Take email and password from client
+
+			const myProfile = await prisma.users.findUnique({
+				where: {
+					id: req.user.id, // Get user id from userAuth middleware (token)
+				},
+				select: { email: true, password: true, avatar_url: true },
+			});
+
+			if (!myProfile) {
+				return commonHelper.response(
+					res,
+					null,
+					403,
+					"User not authenticated !"
+				);
+			}
+
+			// ------------------------ Input Validations ----------------------- //
+
+			if (!email || !password) {
+				return res.status(400).json({ message: "All fields are required !" });
+			}
+
+			email = email.toLowerCase();
+
+			let errors = {}; // Object to hold every client errors
+
+			errors = await userInputCheck({
+				email,
+				password,
+			});
+
+			if (email !== req.user.email) {
+				errors.email = "Email does not match authenticated user !";
+			}
+
+			if (Object.keys(errors).length > 0) {
+				// If there is any error, return the errors
+				return res.status(400).json({ errors });
+			}
+
+			// ------------------------ Input Validations ----------------------- //
+
+			const isValidate = await bcrypt.compare(password, myProfile.password); // Comparing body password with password from 'findEmail'
+			if (!isValidate) {
+				// Validating password and email
+				return commonHelper.response(res, null, 401, "Invalid password !");
+			}
+
+			if (myProfile.avatar_url !== USER_CONSTRAINT.DEFAULT_USER_AVATAR_URL) {
+				const cloudinaryPublicId = getCloudinaryPublicId(myProfile.avatar_url); // Extract public ID from existing custom avatar URL
+				await cloudinary.uploader.destroy(cloudinaryPublicId);
+			}
+			const deleteUser = await prisma.users.delete({
+				where: {
+					id: req.user.id,
+				},
+			});
+
+			delete myProfile.password;
+			password = null; // Clear sensitive data
 
 			return commonHelper.response(
 				res,
-				result,
-				201,
-				"Change password success !"
+				null,
+				200,
+				"Account deleted successfully, please delete user token from browser local storage !"
 			);
 		} catch (error) {
 			console.error(error);

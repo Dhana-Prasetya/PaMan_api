@@ -1,5 +1,8 @@
 node_modules
 .env
+.env.dev
+.env.prod
 .vscode
 /src/generated/prisma
 ecosystem.config.js
+PaMan_API_env

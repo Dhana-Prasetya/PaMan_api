@@ -8,6 +8,7 @@ const isValidYYYYMMDD = require("./isValidYYYYMMDD.js");
 
 async function inputCheck({
 	username = null,
+	name = null,
 	email = null,
 	password = null,
 	phone_number = null,
@@ -24,6 +25,17 @@ async function inputCheck({
 		) {
 			// Input validation (client always send as string)
 			errors.username = `Username must contain letters and be between ${USER_CONSTRAINT.MIN_USERNAME_LENGTH} and ${STRING_CONSTRAINT.MAX_VARCHAR} characters long ! !`;
+		}
+	}
+
+	if (name) {
+		if (
+			!isNaN(name) ||
+			name.length > STRING_CONSTRAINT.MAX_VARCHAR ||
+			name.length < USER_CONSTRAINT.MIN_USERNAME_LENGTH
+		) {
+			// Input validation (client always send as string)
+			errors.name = `Name must contain letters and be between ${USER_CONSTRAINT.MIN_USERNAME_LENGTH} and ${STRING_CONSTRAINT.MAX_VARCHAR} characters long ! !`;
 		}
 	}
 

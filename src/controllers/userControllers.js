@@ -173,6 +173,7 @@ const userController = {
 				},
 				select: {
 					username: true,
+					name: true,
 					email: true,
 					phone_number: true,
 					birthday: true,
@@ -203,7 +204,14 @@ const userController = {
 
 	EditProfileData: async (req, res, next) => {
 		try {
-			let { username, phone_number, email, birthday = null, gender } = req.body;
+			let {
+				username,
+				name = null,
+				phone_number,
+				email,
+				birthday = null,
+				gender,
+			} = req.body;
 
 			const myProfile = await prisma.users.findUnique({
 				where: {
@@ -226,9 +234,9 @@ const userController = {
 			let errors = {}; // Object to hold every client errors
 
 			if (!username || !email || !phone_number || !gender) {
-				return res
-					.status(400)
-					.json({ message: "All fields are required except 'birthday' !" });
+				return res.status(400).json({
+					message: "All fields are required except 'birthday' and 'name' !",
+				});
 			}
 
 			errors = await userInputCheck({
@@ -237,6 +245,7 @@ const userController = {
 				phone_number,
 				gender,
 				birthday,
+				name,
 			});
 
 			if (Object.keys(errors).length > 0) {
@@ -265,6 +274,7 @@ const userController = {
 
 			const data = {
 				username,
+				name,
 				phone_number,
 				gender,
 				email: email.toLowerCase(), // Normalize email to lowercase

@@ -10,7 +10,6 @@ const { getCloudinaryPublicId } = require("../helper/getCloudinaryPublicId.js");
 const productIdCheck = require("../helper/productIdCheck.js");
 const productInputCheck = require("../helper/productInputCheck.js");
 const adminAuthCheck = require("../helper/adminAuthCheck.js");
-const adminIdCheck = require("../helper/adminAuthCheck.js");
 
 const prisma = new PrismaClient();
 
@@ -134,7 +133,7 @@ const productController = {
 	InsertProduct: async (req, res) => {
 		// Adding product
 		try {
-			const isAdminValidated = await adminIdCheck(req.admin.id); // Boolean check if admin id from adminAuth middleware is valid
+			const isAdminValidated = await adminAuthCheck(req.admin.id); // Boolean check if admin id from adminAuth middleware is valid
 
 			if (!isAdminValidated) {
 				return commonHelper.response(res, null, 403, "Unauthorized access");
@@ -210,7 +209,14 @@ const productController = {
 
 			let customPublicId = nextProductIdQuery[0]; // Get the first object from the query result
 			customPublicId = customPublicId.last_value; // Extract the last_value property
-			customPublicId = Number(customPublicId) + 1; // Increment by 1 to get the next ID value
+			customPublicId = Number(customPublicId); // Convert to Number
+
+			console.log("Next Product ID:", customPublicId);
+
+			if (customPublicId > ID_CONSTRAINT.MIN_INT) {
+				// If not first entry,  increment by 1
+				customPublicId = customPublicId + 1; // Increment by 1 to get the next ID value
+			}
 
 			customPublicId = `${PRODUCT_CONSTRAINT.FILE_NAME_PREFIX}${customPublicId}`;
 
@@ -247,7 +253,7 @@ const productController = {
 	UpdateProductData: async (req, res) => {
 		// Update by id
 		try {
-			const isAdminValidated = await adminIdCheck(req.admin.id); // Boolean check if admin id from adminAuth middleware is valid
+			const isAdminValidated = await adminAuthCheck(req.admin.id); // Boolean check if admin id from adminAuth middleware is valid
 
 			if (!isAdminValidated) {
 				return commonHelper.response(res, null, 403, "Unauthorized access");
@@ -361,7 +367,7 @@ const productController = {
 	UpdateProductImage: async (req, res) => {
 		// Update by id
 		try {
-			const isAdminValidated = await adminIdCheck(req.admin.id); // Boolean check if admin id from adminAuth middleware is valid
+			const isAdminValidated = await adminAuthCheck(req.admin.id); // Boolean check if admin id from adminAuth middleware is valid
 
 			if (!isAdminValidated) {
 				return commonHelper.response(res, null, 403, "Unauthorized access");
@@ -435,7 +441,7 @@ const productController = {
 	DeleteProduct: async (req, res) => {
 		// Delete product by id
 		try {
-			const isAdminValidated = await adminIdCheck(req.admin.id); // Boolean check if admin id from adminAuth middleware is valid
+			const isAdminValidated = await adminAuthCheck(req.admin.id); // Boolean check if admin id from adminAuth middleware is valid
 
 			if (!isAdminValidated) {
 				return commonHelper.response(res, null, 403, "Unauthorized access");

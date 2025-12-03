@@ -1,7 +1,7 @@
 // ---------------------------------------- Library imports and initializations ----------------------------------------
 
 require("dotenv").config(); // Load environment variables from .env file into process.env
-const port = process.env.BACKEND_RUNNING_PORT; // Set port from environment variable
+// const port = process.env.BACKEND_RUNNING_PORT; // Set port from environment variable
 const express = require("express"); // Calling express module
 const app = express(); // Create instance of express
 const cors = require("cors"); // Calling cors package to select which origin can access the backend
@@ -85,9 +85,9 @@ app.use("/", (req, res) => {
 	});
 });
 
-app.listen(port, () => {
-	// Port listening
-	console.log(`\nServer running on http://localhost:${port}`);
+// app.listen(port, () => {
+// 	// Port listening
+// 	console.log(`\nServer running on http://localhost:${port}`);
 
-	console.log("\n--------------- Http Log ---------------");
-});
+// 	console.log("\n--------------- Http Log ---------------");
+// });

@@ -10,21 +10,15 @@ datasource db {
 model users {
   id            String      @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   username      String      @unique @db.VarChar(255)
+  name          String?     @db.VarChar(255)
   phone_number  String      @unique @db.VarChar(20)
   email         String      @unique @db.VarChar(255)
   password      String      @db.VarChar(255)
   gender        gender_enum
   role          String      @db.VarChar(10)
+  birthday      DateTime?   @db.Date
   avatar_url    String?     @db.VarChar(255)
   register_date DateTime?   @default(now()) @db.Timestamptz(6)
-  birthday      DateTime?   @db.Date
-}
-
-model contact {
-  id       String @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  username String @db.VarChar(255)
-  email    String @db.VarChar(255)
-  message  String
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.

@@ -1,7 +1,7 @@
 const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
 
-async function adminIdCheck(admin_id) {
+async function adminAuthCheck(admin_id) {
 	const adminInDb = await prisma.admin.findUnique({
 		where: {
 			id: admin_id,
@@ -15,4 +15,4 @@ async function adminIdCheck(admin_id) {
 	}
 }
 
-module.exports = adminIdCheck;
+module.exports = adminAuthCheck;

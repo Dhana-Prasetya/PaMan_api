@@ -11,7 +11,8 @@
     "db-save-prisma-schema": "npx prisma generate",
     "update-schema-from-db": "npx prisma db pull && npx prisma generate",
     "prisma-setup": "npm i prisma --save-dev && npx prisma init && npm i @prisma/client",
-    "lint": "eslint"
+    "lint": "eslint",
+    "start":"node index.js"
   },
   "author": "Dhana",
   "license": "ISC",

@@ -8,16 +8,18 @@ datasource db {
 }
 
 model users {
-  id            String      @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  username      String      @unique @db.VarChar(255)
-  phone_number  String      @unique @db.VarChar(20)
-  email         String      @unique @db.VarChar(255)
-  password      String      @db.VarChar(255)
+  id            String         @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  username      String         @unique @db.VarChar(255)
+  phone_number  String         @unique @db.VarChar(20)
+  email         String         @unique @db.VarChar(255)
+  password      String         @db.VarChar(255)
   gender        gender_enum
-  role          String      @db.VarChar(10)
-  avatar_url    String?     @db.VarChar(255)
-  register_date DateTime?   @default(now()) @db.Timestamptz(6)
-  birthday      DateTime?   @db.Date
+  role          String         @db.VarChar(10)
+  avatar_url    String?        @db.VarChar(255)
+  register_date DateTime?      @default(now()) @db.Timestamptz(6)
+  birthday      DateTime?      @db.Date
+  temp_token    String?        @db.VarChar(300)
+  user_address  user_address[]
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -42,6 +44,7 @@ model admin {
   role          String    @db.VarChar(10)
   avatar_url    String?   @db.VarChar(255)
   register_date DateTime? @default(now()) @db.Timestamptz(6)
+  temp_token    String?   @db.VarChar(300)
 }
 
 model contact {
@@ -49,6 +52,18 @@ model contact {
   username String @db.VarChar(255)
   email    String @db.VarChar(255)
   message  String @db.VarChar(800)
+}
+
+model user_address {
+  id          Int      @id @default(autoincrement())
+  user_id     String   @db.Uuid
+  street      String   @db.VarChar(255)
+  kecamatan   String   @db.VarChar(255)
+  city        String   @db.VarChar(100)
+  province    String   @db.VarChar(100)
+  postal_code String   @db.VarChar(20)
+  is_default  Boolean? @default(false)
+  users       users    @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 }
 
 enum gender_enum {

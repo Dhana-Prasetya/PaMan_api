@@ -11,4 +11,5 @@ router.patch("/edit-profile-data", userAuth, userController.EditProfileData);
 router.patch("/edit-avatar", userAuth, upload, userController.EditAvatar);
 router.patch("/change-password", userAuth, userController.ChangePassword);
 router.delete("/delete-account", userAuth, userController.DeleteMyAccount);
+router.delete("/logout", userAuth, userController.Logout);
 module.exports = router;

@@ -18,7 +18,7 @@ async function userDuplicationCheck(
 
 		if (dataInDb) {
 			// Check if email already exists in database
-			errors.emailRegistered;
+			errors.emailRegistered = "Email is already registered";
 		}
 	}
 
@@ -31,8 +31,8 @@ async function userDuplicationCheck(
 		});
 
 		if (dataInDb) {
-			// Check if email already exists in database
-			errors.usernameRegistered;
+			// Check if username already exists in database
+			errors.usernameRegistered = "Username is already registered";
 		}
 	}
 
@@ -45,8 +45,8 @@ async function userDuplicationCheck(
 		});
 
 		if (dataInDb) {
-			// Check if email already exists in database
-			errors.phoneNumberRegistered;
+			// Check if phone number already exists in database
+			errors.phoneNumberRegistered = "Phone number is already registered";
 		}
 	}
 

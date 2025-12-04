@@ -23,6 +23,7 @@ const IMAGE_CONSTRAINT = {
 
 const USER_CONSTRAINT = {
 	PHONE_NUMBER_MAX_VARCHAR: 20, // Maximum length for phone number
+	PHONE_NUMBER_MIN_VARCHAR: 10, // Minimum length for phone number
 	GENDER_ENUM: ["Laki", "Perempuan", "Rahasia"], // Allowed Gender values
 	DEFAULT_USER_AVATAR_URL: process.env.CLOUDINARY_DEFAULT_USER_AVATAR_URL,
 	USER_ROLE: "user",

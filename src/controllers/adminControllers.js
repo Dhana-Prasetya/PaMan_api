@@ -58,7 +58,7 @@ const adminController = {
 					res,
 					null,
 					401,
-					"Email are not registered !"
+					"Invalid password or email !"
 				);
 			}
 
@@ -86,9 +86,38 @@ const adminController = {
 			};
 
 			dataInDb.token = generateToken(payload); // Create token and add to dataInDb object
+
+			const updateTempToken = await prisma.admin.update({
+				// Store temp_token in database for token validation
+				where: {
+					id: dataInDb.id,
+				},
+				data: {
+					temp_token: dataInDb.token,
+				},
+			});
+
 			return commonHelper.response(res, dataInDb, 201, "Login success");
 		} catch (error) {
 			res.send(error);
+		}
+	},
+
+	Logout: async (req, res, next) => {
+		try {
+			const deleteTempToken = await prisma.users.update({
+				// Clear temp_token in database to invalidate token
+				where: {
+					id: req.admin.id,
+				},
+				data: {
+					temp_token: null,
+				},
+			});
+
+			return commonHelper.response(res, null, 200, "Logout success !");
+		} catch {
+			return commonHelper.response(res, null, 500, "Internal server error");
 		}
 	},
 };

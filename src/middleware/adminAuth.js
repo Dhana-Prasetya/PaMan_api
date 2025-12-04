@@ -1,8 +1,10 @@
 const jwt = require("jsonwebtoken");
 const createError = require("http-errors");
 const { ADMIN_CONSTRAINT } = require("../config/inputConstraint");
+const { PrismaClient } = require("@prisma/client");
+const prisma = new PrismaClient();
 
-const adminAuth = (req, res, next) => {
+const adminAuth = async (req, res, next) => {
 	try {
 		let token;
 		if (req.headers.authorization) {
@@ -11,6 +13,22 @@ const adminAuth = (req, res, next) => {
 
 			if (decoded.role !== ADMIN_CONSTRAINT.ADMIN_ROLE) {
 				next(new createError(401, "Not Authorized !"));
+			}
+
+			// Fetch the temp_token from DB and compare it to the provided token
+			const adminTokenInDb = await prisma.admin.findUnique({
+				where: { id: decoded.id },
+				select: { temp_token: true },
+			});
+
+			if (!adminTokenInDb) {
+				return next(new createError(401, "Invalid token"));
+			}
+
+			if (token !== adminTokenInDb.temp_token) {
+				return next(
+					new createError(401, "Token has been revoked. Please login again.")
+				);
 			}
 
 			// Provide a `req.user` alias for handlers that expect it

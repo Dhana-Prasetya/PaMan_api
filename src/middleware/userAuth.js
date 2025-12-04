@@ -4,7 +4,7 @@ const { USER_CONSTRAINT } = require("../config/inputConstraint");
 const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
 
-const userAuth = (req, res, next) => {
+const userAuth = async (req, res, next) => {
 	try {
 		let token;
 		if (req.headers.authorization) {
@@ -12,17 +12,18 @@ const userAuth = (req, res, next) => {
 			const decoded = jwt.verify(token, process.env.SECRET_KEY_JWT);
 
 			if (decoded.role !== USER_CONSTRAINT.USER_ROLE) {
-				next(new createError(401, "Not Authorized !"));
+				return next(new createError(401, "Not Authorized !"));
 			}
 
-			let userTokenInDb;
+			// Fetch the temp_token from DB and compare it to the provided token
+			const userTokenInDb = await prisma.users.findUnique({
+				where: { id: decoded.id },
+				select: { temp_token: true },
+			});
 
-			const getTempToken = async () => {
-				userTokenInDb = await prisma.users.findUnique({
-					where: { id: decoded.id },
-					select: { temp_token: true },
-				});
-			};
+			if (!userTokenInDb) {
+				return next(new createError(401, "Invalid token"));
+			}
 
 			if (token !== userTokenInDb.temp_token) {
 				return next(
@@ -33,11 +34,9 @@ const userAuth = (req, res, next) => {
 			// Provide a `req.user` alias for handlers that expect it
 			req.user = decoded;
 
-			next();
+			return next();
 		} else {
-			res.json({
-				message: "Server need token",
-			});
+			return res.status(400).json({ message: "Server need token" });
 		}
 	} catch (error) {
 		console.log(error);

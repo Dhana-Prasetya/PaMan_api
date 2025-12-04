@@ -60,7 +60,7 @@ async function inputCheck({
 		if (
 			isNaN(phone_number) ||
 			phone_number.length > USER_CONSTRAINT.PHONE_NUMBER_MAX_VARCHAR ||
-			phone_number.length < USER_CONSTRAINT.MIN_VARCHAR
+			phone_number.length < USER_CONSTRAINT.PHONE_NUMBER_MIN_VARCHAR
 		) {
 			errors.phone_number =
 				"Phone number must contain only digits and be at most " +

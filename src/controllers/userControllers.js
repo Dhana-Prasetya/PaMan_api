@@ -272,7 +272,7 @@ const userController = {
 
 			if (duplicationCheck > 0) {
 				return res.status(400).json({
-					message: "Email, username, or phone number is already registered !",
+					message: "Email, username, or phone number is already taken !",
 				});
 			}
 
@@ -573,7 +573,21 @@ const userController = {
 				},
 			});
 
-			return commonHelper.response(res, null, 200, "Logout success !");
+			if (!deleteTempToken) {
+				return commonHelper.response(
+					res,
+					null,
+					403,
+					"User not authenticated !"
+				);
+			}
+
+			return commonHelper.response(
+				res,
+				null,
+				200,
+				"Logout success, please delete user token from browser local storage !"
+			);
 		} catch {
 			return commonHelper.response(res, null, 500, "Internal server error");
 		}

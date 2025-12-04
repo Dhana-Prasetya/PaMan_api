@@ -19,6 +19,7 @@ model users {
   register_date DateTime?      @default(now()) @db.Timestamptz(6)
   birthday      DateTime?      @db.Date
   temp_token    String?        @db.VarChar(300)
+  name          String?        @db.VarChar(255)
   user_address  user_address[]
 }
 

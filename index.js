@@ -1,7 +1,7 @@
 // ---------------------------------------- Library imports and initializations ----------------------------------------
 
 require("dotenv").config(); // Load environment variables from .env file into process.env
-// const port = process.env.BACKEND_RUNNING_PORT; // Set port from environment variable
+const port = process.env.BACKEND_RUNNING_PORT || 5000; // Set port from environment variable
 const express = require("express"); // Calling express module
 const app = express(); // Create instance of express
 const cors = require("cors"); // Calling cors package to select which origin can access the backend
@@ -51,7 +51,7 @@ app.use(
 );
 
 // Tell Express to trust the proxy (ngrok)
-app.set("trust proxy", true);
+// app.set("trust proxy", true);
 
 // ---------------------------------------- Helmet, JSON Parse, Malformed JSON handling ----------------------------------------
 
@@ -87,13 +87,10 @@ app.use("/", (req, res) => {
 });
 
 // 🌟 CORRECT EXPORT for the serverless runtime
-module.exports = serverless(app);
-// OR if you configured the handler name to be 'app':
+// module.exports = serverless(app);
 // module.exports.app = serverless(app);
 
-// app.listen(port, () => {
-// 	// Port listening
-// 	console.log(`\nServer running on http://localhost:${port}`);
-
-// 	console.log("\n--------------- Http Log ---------------");
-// });
+app.listen(port, () => {
+	// Port listening
+	console.log(`\nServer running on http://localhost:${port}`);
+});

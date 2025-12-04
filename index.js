@@ -8,7 +8,6 @@ const cors = require("cors"); // Calling cors package to select which origin can
 const morgan = require("morgan"); // Calling morgan package for logging
 const helmet = require("helmet"); // Calling helmet package for security headers by telling browser to block unknown sources
 const rateLimit = require("express-rate-limit");
-const serverless = require("serverless-http");
 
 // ---------------------------------------- Cors ----------------------------------------
 
@@ -74,10 +73,12 @@ app.use((err, req, res, next) => {
 const ProductRouter = require("./src/routes/productRoutes");
 const UserRouter = require("./src/routes/userRoutes");
 const AdminRouter = require("./src/routes/adminRoutes");
+const contactRouter = require("./src/routes/contactRoutes");
 
 app.use("/api/products", ProductRouter); // Prefix all routes/middleware in product.js in routes with '/products'
 app.use("/api/user", UserRouter); // Prefix all routes/middleware in user.js in routes with '/users'
 app.use("/api/admin", AdminRouter);
+app.use("/api/contact", contactRouter);
 
 app.use("/", (req, res) => {
 	// Basic route for root path
@@ -85,10 +86,6 @@ app.use("/", (req, res) => {
 		message: "Welcome to the Panenmania API ! This is the default route",
 	});
 });
-
-// 🌟 CORRECT EXPORT for the serverless runtime
-// module.exports = serverless(app);
-// module.exports.app = serverless(app);
 
 app.listen(port, () => {
 	// Port listening

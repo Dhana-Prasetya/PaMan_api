@@ -10,6 +10,10 @@ const { getCloudinaryPublicId } = require("../helper/getCloudinaryPublicId.js");
 const productIdCheck = require("../helper/productIdCheck.js");
 const productInputCheck = require("../helper/productInputCheck.js");
 const adminAuthCheck = require("../helper/adminAuthCheck.js");
+const paginationCheck = require("../helper/paginationCheck.js");
+const inputConstraint = require("../config/inputConstraint.js");
+const capitalizeFirstLetter = require("../helper/capitalizeFirstLetter.js");
+const pagination = require("../helper/pagination.js");
 
 const prisma = new PrismaClient();
 
@@ -22,26 +26,13 @@ const productController = {
 				limit = PAGINATION_CONSTRAINT.DEFAULT_ITEMS_PER_PAGE,
 			} = req.query; // Default pagination values
 
-			// Check if page and limit are integers
-			page = Number(page);
+			page = Number(page); // Convert to Number
 			limit = Number(limit);
-
-			const pageIntCheck = Number.isInteger(page);
-			const limitIntCheck = Number.isInteger(limit);
 
 			// ------------------------ Input Validations ----------------------- //
 
-			const errors = {};
-			if (page < 1 || !pageIntCheck) {
-				errors.page = `Page must be a positive integer between 1 and ${ID_CONSTRAINT.MAX_INT} !`;
-			}
-			if (
-				limit < 1 ||
-				limit > PAGINATION_CONSTRAINT.MAX_ITEMS_PER_PAGE ||
-				!limitIntCheck
-			) {
-				errors.limit = `Limit must be a positive integer between 1 and ${PAGINATION_CONSTRAINT.MAX_ITEMS_PER_PAGE} !`;
-			}
+			let errors = {};
+			errors = paginationCheck(page, limit);
 
 			if (Object.keys(errors).length > 0) {
 				// If there is any error, return the errors
@@ -50,16 +41,13 @@ const productController = {
 
 			// ------------------------ Input Validations ----------------------- //
 
-			const skip = (page - 1) * limit; // Calculate the number of records to skip based of page and limit
+			const { skip, total, totalPages } = await pagination({ page, limit });
 
 			const results = await prisma.products.findMany({
 				skip,
 				take: limit,
 				orderBy: { id: "asc" },
 			});
-
-			const total = await prisma.products.count();
-			const totalPages = Math.ceil(total / limit);
 
 			const payload = {
 				page,
@@ -164,6 +152,8 @@ const productController = {
 					message: "All fields are required except ''discounted_price'' !",
 				});
 			}
+
+			category = capitalizeFirstLetter(category); // Capitalize input first letter to match enum values
 
 			errors = await productInputCheck({
 				name,
@@ -316,6 +306,8 @@ const productController = {
 					message: "All fields are required except ''discounted_price'' !",
 				});
 			}
+
+			category = capitalizeFirstLetter(category); // Capitalize input first letter to match enum values
 
 			errors = await productInputCheck({
 				name,
@@ -501,6 +493,191 @@ const productController = {
 		} catch (error) {
 			console.error(error);
 			return commonHelper.response(res, null, 500, "Failed to delete product");
+		}
+	},
+
+	SearchProductByNamePaginated: async (req, res) => {
+		try {
+			let {
+				product,
+				page = PAGINATION_CONSTRAINT.DEFAULT_PAGE_POSITION,
+				limit = PAGINATION_CONSTRAINT.DEFAULT_ITEMS_PER_PAGE,
+			} = req.query;
+
+			// ------------------------ Input Validations ----------------------- //
+
+			page = Number(page);
+			limit = Number(limit);
+
+			let errors = {};
+			errors = paginationCheck(page, limit);
+
+			if (!isNaN(product)) {
+				// Input validation (client always send as string)
+				errors.product = "Product name must contain letters !";
+			}
+
+			if (Object.keys(errors).length > 0) {
+				// If there is any error, return the errors
+				return res.status(400).json({ errors });
+			}
+
+			// ------------------------ Input Validations ----------------------- //
+
+			const { skip, total, totalPages } = await pagination({ page, limit });
+
+			const productSentence = product.replace(/\d/g, ""); // Remove digits from search query (for broader search)
+
+			const searchResults = await prisma.products.findMany({
+				where: {
+					name: {
+						contains: productSentence,
+						mode: "insensitive", // search to ignore case
+					},
+					// condition: stock must be greater than 0
+					stock: {
+						gt: 0, // 'gt' stands for Greater Than
+					},
+				},
+				select: {
+					id: true,
+					photo_url: true,
+					name: true,
+					description: true,
+					price: true,
+					discounted_price: true,
+				},
+				skip,
+				take: limit,
+				orderBy: { id: "asc" },
+			});
+
+			const payload = {
+				page,
+				limit,
+				total,
+				totalPages,
+				searchResults,
+			};
+
+			return commonHelper.response(
+				res,
+				payload,
+				200,
+				"Product search successful"
+			);
+		} catch (error) {
+			console.error(error);
+			return commonHelper.response(res, null, 500, "Internal Server Error");
+		}
+	},
+
+	AdminSortedProducts: async (req, res) => {
+		try {
+			const isAdminValidated = await adminAuthCheck(req.admin.id); // Boolean check if admin id from adminAuth middleware is valid
+
+			if (!isAdminValidated) {
+				return commonHelper.response(res, null, 403, "Unauthorized access");
+			}
+
+			const isEmpty = await prisma.products.count(); // If no products in database, return 404
+			if (isEmpty < 1) {
+				return commonHelper.response(res, null, 404, "No products in database");
+			}
+
+			let {
+				sort,
+				page = PAGINATION_CONSTRAINT.DEFAULT_PAGE_POSITION,
+				limit = PAGINATION_CONSTRAINT.DEFAULT_ITEMS_PER_PAGE,
+			} = req.query;
+
+			sort = capitalizeFirstLetter(sort); // Capitalize input first letter to match enum values
+
+			// ------------------------ Input Validations ----------------------- //
+
+			page = Number(page);
+			limit = Number(limit);
+
+			let errors = {};
+			errors = paginationCheck(page, limit);
+
+			if (!sort || !isNaN(sort)) {
+				errors.sort = "Sort field is required and must contain letters !";
+			}
+
+			if (Object.keys(errors).length > 0) {
+				// If there is any error, return the errors
+				return res.status(400).json({ errors });
+			}
+
+			// ------------------------ Input Validations ----------------------- //
+
+			let sortResults = null;
+
+			const { skip, total, totalPages } = await pagination({ page, limit });
+
+			if (PRODUCT_CONSTRAINT.CATEGORY_ENUM.includes(sort)) {
+				sortResults = await prisma.products.findMany({
+					where: {
+						category: sort,
+					},
+					skip,
+					take: limit,
+					orderBy: { id: "asc" },
+				});
+			} else if (sort === inputConstraint.PRODUCT_CONSTRAINT.IN_STOCK) {
+				sortResults = await prisma.products.findMany({
+					where: {
+						stock: { gt: 0 },
+					},
+					orderBy: { id: "asc" },
+				});
+			} else if (sort === inputConstraint.PRODUCT_CONSTRAINT.OUT_OF_STOCK) {
+				sortResults = await prisma.products.findMany({
+					where: {
+						stock: { lt: 1 },
+					},
+					orderBy: { id: "asc" },
+				});
+			}
+
+			const emptyData = Object.keys(sortResults); // Check if the result is empty
+
+			if (emptyData.length === 0) {
+				return commonHelper.response(
+					res,
+					null,
+					404,
+					`No products found in category '${sort}' !`
+				);
+			}
+
+			const payload = {
+				page,
+				limit,
+				total,
+				totalPages,
+				sortResults,
+			};
+
+			if (sortResults !== null) {
+				return commonHelper.response(
+					res,
+					payload,
+					200,
+					`Products sorted by '${sort}' status !`
+				);
+			} else {
+				return commonHelper.response(
+					res,
+					null,
+					400,
+					"Invalid sort option ! Available sort options: 'beras', 'buah', 'sayur', 'in-stock' or 'out-of-stock'."
+				);
+			}
+		} catch (error) {
+			console.error(error);
+			return commonHelper.response(res, null, 500, "Internal Server Error");
 		}
 	},
 };

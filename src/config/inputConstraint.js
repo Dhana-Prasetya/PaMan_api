@@ -11,6 +11,9 @@ const PRODUCT_CONSTRAINT = {
 	MIN_STOCK: 0, // Minimum stock allowed
 	MAX_STOCK: 1000, // Maximum stock allowed
 	FILE_NAME_PREFIX: "product_id-",
+	IN_STOCK: "In-stock",
+	OUT_OF_STOCK: "Out-of-stock",
+	MAX_TEXT_VARCHAR: 4000,
 };
 
 const IMAGE_CONSTRAINT = {
@@ -26,6 +29,10 @@ const USER_CONSTRAINT = {
 	DEFAULT_IMAGE_FOLDER: "user_avatar",
 	MIN_USERNAME_LENGTH: 4, // Minimum username length
 	FILE_NAME_PREFIX: "user_id-",
+};
+
+const CONTACT_CONSTRAINT = {
+	MAX_MESSAGE_VARCHAR: 800,
 };
 
 const ADMIN_CONSTRAINT = {
@@ -44,9 +51,10 @@ const DATE_CONSTRAINT = {
 };
 
 const PAGINATION_CONSTRAINT = {
-	DEFAULT_ITEMS_PER_PAGE: 10, // Default items per page
+	DEFAULT_ITEMS_PER_PAGE: 5, // Default items per page
 	DEFAULT_PAGE_POSITION: 1, // Default starting page
 	MAX_ITEMS_PER_PAGE: 30, // Maximum items allowed per page
+	MAX_PAGE_POSITION: 20, // Maximum page position allowed
 };
 
 module.exports = {
@@ -57,5 +65,6 @@ module.exports = {
 	PRODUCT_CONSTRAINT,
 	PAGINATION_CONSTRAINT,
 	ADMIN_CONSTRAINT,
+	CONTACT_CONSTRAINT,
 	DATE_CONSTRAINT,
 };

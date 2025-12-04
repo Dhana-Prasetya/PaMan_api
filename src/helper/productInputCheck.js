@@ -36,14 +36,17 @@ async function productInputCheck({
 		errors.price = `Price must be a positive integer with range ${PRODUCT_CONSTRAINT.MIN_PRICE} to ${PRODUCT_CONSTRAINT.MAX_PRICE} !`;
 	}
 
-	if (!isNaN(description)) {
+	if (
+		!isNaN(description) ||
+		description.length > PRODUCT_CONSTRAINT.MAX_TEXT_VARCHAR
+	) {
 		// Input validation (client always send as string)
-		errors.description = "Description must contain letters !";
+		errors.description = `Description must contain letters and be at most ${PRODUCT_CONSTRAINT.MAX_TEXT_VARCHAR} characters long !`;
 	}
 
 	if (!PRODUCT_CONSTRAINT.CATEGORY_ENUM.includes(category)) {
 		errors.category =
-			"Product category only support ''Beras'', ''Sayur'', or ''Buah''";
+			"Product category only support ''Beras'', ''Sayur'', or ''Buah'' !";
 	}
 
 	if (discounted_price) {

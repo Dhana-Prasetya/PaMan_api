@@ -3,6 +3,7 @@ const {
 	USER_CONSTRAINT,
 	STRING_CONSTRAINT,
 	DATE_CONSTRAINT,
+	CONTACT_CONSTRAINT,
 } = require("../config/inputConstraint.js");
 const isValidYYYYMMDD = require("./isValidYYYYMMDD.js");
 
@@ -14,6 +15,7 @@ async function inputCheck({
 	phone_number = null,
 	gender = null,
 	birthday = null,
+	message = null,
 }) {
 	const errors = {}; // Object to hold every client errors
 
@@ -89,6 +91,15 @@ async function inputCheck({
 			new Date(birthday) > DATE_CONSTRAINT.MAX_DATE
 		) {
 			errors.birthday = "Birthday date is out of valid range !";
+		}
+	}
+
+	if (message) {
+		if (
+			!isNaN(message) ||
+			message.length > CONTACT_CONSTRAINT.MAX_MESSAGE_VARCHAR
+		) {
+			errors.message = `Message must contain letters and be at most ${CONTACT_CONSTRAINT.MAX_MESSAGE_VARCHAR} characters long !`;
 		}
 	}
 

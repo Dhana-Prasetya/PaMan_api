@@ -12,7 +12,8 @@
     "usf-db": "npx prisma db pull && npx prisma generate",
     "prisma-setup": "npm i prisma --save-dev && npx prisma init && npm i @prisma/client",
     "lint": "eslint",
-    "start":"node index.js"
+    "start":"node index.js",
+    "postinstall":"prisma generate"
   },
   "author": "Dhana",
   "license": "ISC",

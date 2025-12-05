@@ -8,14 +8,14 @@ async function productInputCheck({
 	category,
 	discounted_price = null,
 }) {
-	const errors = {}; // Object to hold every client errors
+	const productInputErrors = {}; // Object to hold every client errors
 
 	const intStockCheck = Number.isInteger(Number(stock));
 	const intPriceCheck = Number.isInteger(Number(price));
 
 	if (!isNaN(name)) {
 		// Input validation (client always send as string)
-		errors.name = "Name must contain letters !";
+		productInputErrors.name = "Name must contain letters !";
 	}
 
 	if (
@@ -24,7 +24,7 @@ async function productInputCheck({
 		stock > PRODUCT_CONSTRAINT.MAX_STOCK
 	) {
 		// Input validation for stock
-		errors.stock = `Stock must be a positive integer with range ${PRODUCT_CONSTRAINT.MIN_STOCK} to ${PRODUCT_CONSTRAINT.MAX_STOCK} !`;
+		productInputErrors.stock = `Stock must be a positive integer with range ${PRODUCT_CONSTRAINT.MIN_STOCK} to ${PRODUCT_CONSTRAINT.MAX_STOCK} !`;
 	}
 
 	if (
@@ -33,7 +33,7 @@ async function productInputCheck({
 		price > PRODUCT_CONSTRAINT.MAX_PRICE
 	) {
 		// Input validation for price
-		errors.price = `Price must be a positive integer with range ${PRODUCT_CONSTRAINT.MIN_PRICE} to ${PRODUCT_CONSTRAINT.MAX_PRICE} !`;
+		productInputErrors.price = `Price must be a positive integer with range ${PRODUCT_CONSTRAINT.MIN_PRICE} to ${PRODUCT_CONSTRAINT.MAX_PRICE} !`;
 	}
 
 	if (
@@ -41,29 +41,28 @@ async function productInputCheck({
 		description.length > PRODUCT_CONSTRAINT.MAX_TEXT_VARCHAR
 	) {
 		// Input validation (client always send as string)
-		errors.description = `Description must contain letters and be at most ${PRODUCT_CONSTRAINT.MAX_TEXT_VARCHAR} characters long !`;
+		productInputErrors.description = `Description must contain letters and be at most ${PRODUCT_CONSTRAINT.MAX_TEXT_VARCHAR} characters long !`;
 	}
 
 	if (!PRODUCT_CONSTRAINT.CATEGORY_ENUM.includes(category)) {
-		errors.category =
+		productInputErrors.category =
 			"Product category only support ''Beras'', ''Sayur'', or ''Buah'' !";
 	}
 
 	if (discounted_price) {
-		// Check 1: Must be a number and an integer
-		const isInteger = Number.isInteger(discounted_price);
+		const intDiscountedPriceCheck = Number.isInteger(Number(discounted_price));
 
 		// Check 2: Must be non-negative (>= 0)
 		const isNonNegative = discounted_price >= PRODUCT_CONSTRAINT.MIN_PRICE;
 
 		// If it's NOT an integer OR it's negative, then it's invalid.
-		if (!isInteger || !isNonNegative) {
-			errors.discounted_price =
+		if (!intDiscountedPriceCheck || !isNonNegative) {
+			productInputErrors.discounted_price =
 				"Discounted price must be a non-negative integer!";
 		}
 	}
 
-	return errors;
+	return productInputErrors;
 }
 
 module.exports = productInputCheck;

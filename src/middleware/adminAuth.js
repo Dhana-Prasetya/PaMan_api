@@ -12,7 +12,7 @@ const adminAuth = async (req, res, next) => {
 			let decoded = jwt.verify(token, process.env.SECRET_KEY_JWT);
 
 			if (decoded.role !== ADMIN_CONSTRAINT.ADMIN_ROLE) {
-				next(new createError(401, "Not Authorized !"));
+				return next(new createError(401, "Not Authorized !"));
 			}
 
 			// Fetch the temp_token from DB and compare it to the provided token
@@ -31,12 +31,12 @@ const adminAuth = async (req, res, next) => {
 				);
 			}
 
-			// Provide a `req.user` alias for handlers that expect it
+			// Provide a `req.admin` for handlers that expect it
 			req.admin = decoded;
 
-			next();
+			return next();
 		} else {
-			res.json({
+			return res.status(400).json({
 				message: "Server need token",
 			});
 		}
@@ -44,11 +44,11 @@ const adminAuth = async (req, res, next) => {
 		console.log(error);
 
 		if (error && error.name === "JsonWebTokenError") {
-			next(new createError(400, "Token invalid"));
+			return next(new createError(400, "Token invalid"));
 		} else if (error && error.name === "TokenExpiredError") {
-			next(new createError(400, "Token expired"));
+			return next(new createError(400, "Token expired"));
 		} else {
-			next(new createError(500, "Token not active"));
+			return next(new createError(500, "Token not active"));
 		}
 	}
 };

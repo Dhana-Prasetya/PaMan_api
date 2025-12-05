@@ -1,10 +1,9 @@
 const { generateToken } = require("../helper/auth.js");
 const bcrypt = require("bcryptjs");
 const commonHelper = require("../helper/common.js");
-const { PrismaClient } = require("@prisma/client");
+const { PrismaClient, Prisma } = require("@prisma/client");
 const { cloudinary } = require("../middleware/cloudinary.js");
 const { USER_CONSTRAINT } = require("../config/inputConstraint.js");
-const userDuplicationCheck = require("../helper/userDuplicationCheck.js");
 const userInputCheck = require("../helper/userInputCheck.js");
 const { getCloudinaryPublicId } = require("../helper/getCloudinaryPublicId.js");
 const zodValidator = require("zod");
@@ -17,7 +16,7 @@ const userController = {
 		try {
 			let { username, phone_number, email, password, gender } = req.body;
 
-			// ------------------------ Input & Duplication Validations ----------------------- //
+			// ------------------------ Input & Validations ----------------------- //
 
 			let errors = {}; // Object to hold every client errors
 
@@ -39,19 +38,7 @@ const userController = {
 				return res.status(400).json({ errors });
 			}
 
-			const duplicationCheck = await userDuplicationCheck(
-				email,
-				username,
-				phone_number
-			);
-
-			if (duplicationCheck > 0) {
-				return res.status(400).json({
-					message: "Email, username, or phone number is already registered !",
-				});
-			}
-
-			// ------------------------ Input & Duplication Validations ----------------------- //
+			// ------------------------ Input & Validations ----------------------- //
 
 			const salt = await bcrypt.genSalt(saltRounds);
 			const hashedPassword = await bcrypt.hash(password, salt);
@@ -72,14 +59,21 @@ const userController = {
 			});
 
 			(delete data.password,
-				data.phone_number,
+				delete data.phone_number,
 				delete data.avatar_url,
 				delete data.gender); // Delete sensitive info from response
 
 			return commonHelper.response(res, data, 201, "Register success !");
 		} catch (error) {
-			console.error(error);
-			return commonHelper.response(res, null, 500, "Internal server error");
+			if (error.code === "P2002") {
+				// Prisma unique constraint error code
+				return res.status(400).json({
+					message: "Email, username, or phone number is already registered !",
+				});
+			} else {
+				console.error(`\n${error}\n`);
+				return commonHelper.response(res, null, 500, "Internal server error");
+			}
 		}
 	},
 
@@ -127,12 +121,7 @@ const userController = {
 
 			if (!dataInDb) {
 				// Validating email
-				return commonHelper.response(
-					res,
-					null,
-					401,
-					"Email are not registered !"
-				);
+				return commonHelper.response(res, null, 401, "Email not found !");
 			}
 
 			const isValidate = await bcrypt.compare(password, dataInDb.password); // Comparing body password with password from 'findEmail'
@@ -172,7 +161,8 @@ const userController = {
 
 			return commonHelper.response(res, dataInDb, 201, "Login success");
 		} catch (error) {
-			res.send(error);
+			console.error(`\n${error}\n`);
+			return commonHelper.response(res, null, 500, "Internal server error");
 		}
 	},
 
@@ -208,7 +198,7 @@ const userController = {
 				"Get my profile success !"
 			);
 		} catch (error) {
-			console.error(error);
+			console.error(`\n${error}\n`);
 			return commonHelper.response(res, null, 500, "Internal server error");
 		}
 	},
@@ -264,18 +254,6 @@ const userController = {
 				return res.status(400).json({ errors });
 			}
 
-			const duplicationCheck = await userDuplicationCheck(
-				email,
-				username,
-				phone_number
-			);
-
-			if (duplicationCheck > 0) {
-				return res.status(400).json({
-					message: "Email, username, or phone number is already taken !",
-				});
-			}
-
 			// ------------------------ Input Validations ----------------------- //
 
 			if (birthday) {
@@ -292,17 +270,39 @@ const userController = {
 				birthday,
 			};
 
-			const result = await prisma.users.update({
-				where: {
-					id: req.user.id, // Get user id from userAuth middleware (token)
-				},
-				data: data,
-			});
+			const editProfileDb = await prisma.$transaction(
+				[
+					prisma.users.updateOrThrow({
+						where: {
+							id: req.user.id, // Get user id from userAuth middleware (token)
+						},
+						data: data,
+					}),
+				],
+				{
+					transactionOptions: {
+						isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+						setTimeout: 10000,
+					},
+				}
+			);
 
-			return commonHelper.response(res, data, 201, "Edit profile success !");
+			return commonHelper.response(
+				res,
+				editProfileDb,
+				201,
+				"Edit profile success !"
+			);
 		} catch (error) {
-			console.error(error);
-			return commonHelper.response(res, null, 500, "Internal server error");
+			if (error.code === "P2002") {
+				// Prisma unique constraint error code
+				return res.status(400).json({
+					message: "Email, username, or phone number is already taken !",
+				});
+			} else {
+				console.error(`\n${error}\n`);
+				return commonHelper.response(res, null, 500, "Internal server error");
+			}
 		}
 	},
 
@@ -380,7 +380,7 @@ const userController = {
 				"Edit avatar success !"
 			);
 		} catch (error) {
-			console.error(error);
+			console.error(`\n${error}\n`);
 			return commonHelper.response(res, null, 500, "Internal server error");
 		}
 	},
@@ -479,7 +479,7 @@ const userController = {
 
 			return commonHelper.response(res, null, 201, "Change password success !");
 		} catch (error) {
-			console.error(error);
+			console.error(`\n${error}\n`);
 			return commonHelper.response(res, null, 500, "Internal server error");
 		}
 	},
@@ -556,7 +556,7 @@ const userController = {
 				"Account deleted successfully, please delete user token from browser local storage !"
 			);
 		} catch (error) {
-			console.error(error);
+			console.error(`\n${error}\n`);
 			return commonHelper.response(res, null, 500, "Internal server error");
 		}
 	},
@@ -588,7 +588,8 @@ const userController = {
 				200,
 				"Logout success, please delete user token from browser local storage !"
 			);
-		} catch {
+		} catch (error) {
+			console.error(`\n${error}\n`);
 			return commonHelper.response(res, null, 500, "Internal server error");
 		}
 	},

@@ -3,7 +3,11 @@ const bcrypt = require("bcryptjs");
 const commonHelper = require("../helper/common.js");
 const zodValidator = require("zod");
 const { PrismaClient } = require("@prisma/client");
-const { STRING_CONSTRAINT } = require("../config/inputConstraint.js");
+const {
+	STRING_CONSTRAINT,
+	PAGINATION_CONSTRAINT,
+} = require("../config/inputConstraint.js");
+const paginationCheck = require("../helper/paginationCheck.js");
 
 const prisma = new PrismaClient();
 
@@ -45,6 +49,7 @@ const adminController = {
 				},
 				select: {
 					id: true,
+					username: true,
 					email: true,
 					password: true,
 					role: true,
@@ -99,13 +104,14 @@ const adminController = {
 
 			return commonHelper.response(res, dataInDb, 201, "Login success");
 		} catch (error) {
-			res.send(error);
+			console.error(`\n${error}\n`);
+			return commonHelper.response(res, null, 500, "Internal server error");
 		}
 	},
 
 	Logout: async (req, res, next) => {
 		try {
-			const deleteTempToken = await prisma.users.update({
+			const deleteTempToken = await prisma.admin.update({
 				// Clear temp_token in database to invalidate token
 				where: {
 					id: req.admin.id,
@@ -116,8 +122,173 @@ const adminController = {
 			});
 
 			return commonHelper.response(res, null, 200, "Logout success !");
-		} catch {
+		} catch (error) {
+			console.error(`\n${error}\n`);
 			return commonHelper.response(res, null, 500, "Internal server error");
+		}
+	},
+
+	ListOfEveryUserPaginated: async (req, res) => {
+		try {
+			let {
+				sort = "all",
+				page = PAGINATION_CONSTRAINT.DEFAULT_PAGE_POSITION,
+				limit = PAGINATION_CONSTRAINT.DEFAULT_ITEMS_PER_PAGE,
+			} = req.query;
+
+			sort = sort.toLowerCase(); // Convert sort to lowercase for uniformity
+
+			// ------------------------ Input Validations ----------------------- //
+
+			if (!sort || !isNaN(sort)) {
+				commonHelper.response(
+					res,
+					null,
+					400,
+					"Sort parameter is invalid and must contain letters ! The default params are 'all', while specific sort options: 'user', 'admin'."
+				);
+			}
+
+			page = Number(page);
+			limit = Number(limit);
+
+			let paginationErrors = {};
+			paginationErrors = paginationCheck(page, limit);
+
+			if (Object.keys(paginationErrors).length > 0) {
+				// If there is any error, return the errors
+				return res.status(400).json({ paginationErrors });
+			}
+
+			// ------------------------ Input Validations ----------------------- //
+
+			let userResults = null;
+			let adminResults = null;
+
+			let skip = null;
+			let total = null;
+			let totalPages = null;
+
+			let payload = null;
+
+			if (sort === "all") {
+				// ------------------------ Pagination Logic ----------------------- //
+				skip = (page - 1) * limit;
+				total = (await prisma.users.count()) + (await prisma.admin.count());
+				totalPages = Math.ceil(total / limit);
+				// ------------------------ Pagination Logic ----------------------- //
+
+				userResults = await prisma.users.findMany({
+					select: {
+						username: true,
+						email: true,
+						avatar_url: true,
+						role: true,
+						register_date: true,
+					},
+					skip,
+					take: limit,
+					orderBy: { id: "asc" },
+				});
+
+				adminResults = await prisma.admin.findMany({
+					select: {
+						username: true,
+						email: true,
+						avatar_url: true,
+						role: true,
+						register_date: true,
+					},
+					skip,
+					take: limit,
+					orderBy: { id: "asc" },
+				});
+
+				const combinedList = [
+					...userResults.map((u) => ({ ...u, role: "User" })),
+					...adminResults.map((a) => ({ ...a, role: "Admin" })),
+				];
+
+				payload = {
+					role: "all",
+					page,
+					limit,
+					total,
+					totalPages,
+					combinedList,
+				};
+			} else if (sort === "user") {
+				// ------------------------ Pagination Logic ----------------------- //
+				skip = (page - 1) * limit;
+				total = await prisma.users.count();
+				totalPages = Math.ceil(total / limit);
+				// ------------------------ Pagination Logic ----------------------- //
+				userResults = await prisma.users.findMany({
+					select: {
+						username: true,
+						email: true,
+						avatar_url: true,
+						role: true,
+						register_date: true,
+					},
+					skip,
+					take: limit,
+					orderBy: { id: "asc" },
+				});
+
+				payload = {
+					role: "user",
+					page,
+					limit,
+					total,
+					totalPages,
+					userResults,
+				};
+			} else if (sort === "admin") {
+				// ------------------------ Pagination Logic ----------------------- //
+				skip = (page - 1) * limit;
+				total = await prisma.admin.count();
+				totalPages = Math.ceil(total / limit);
+				// ------------------------ Pagination Logic ----------------------- //
+				adminResults = await prisma.admin.findMany({
+					select: {
+						username: true,
+						email: true,
+						avatar_url: true,
+						role: true,
+						register_date: true,
+					},
+					skip,
+					take: limit,
+					orderBy: { id: "asc" },
+				});
+
+				payload = {
+					role: "admin",
+					page,
+					limit,
+					total,
+					totalPages,
+					adminResults,
+				};
+			} else {
+				return commonHelper.response(
+					res,
+					null,
+					400,
+					"Invalid sort option ! Available sort options: 'all', 'user' or 'admin'."
+				);
+			}
+
+			return commonHelper.response(
+				res,
+				payload,
+				200,
+				"List of users fetched !"
+			);
+		} catch (error) {
+			console.error(`\n${error}\n`);
+			return commonHelper.response(res, null, 500, "Internal Server Error");
 		}
 	},
 };

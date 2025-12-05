@@ -44,7 +44,8 @@ const contactController = {
 				201,
 				"Contact message sent successfully !"
 			);
-		} catch {
+		} catch (error) {
+			console.error(`\n${error}\n`);
 			return commonHelper.response(res, null, 500, "Internal server error");
 		}
 	},

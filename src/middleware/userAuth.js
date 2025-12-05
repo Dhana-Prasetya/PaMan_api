@@ -42,11 +42,11 @@ const userAuth = async (req, res, next) => {
 		console.log(error);
 
 		if (error && error.name === "JsonWebTokenError") {
-			next(new createError(400, "Token invalid"));
+			return next(new createError(400, "Token invalid"));
 		} else if (error && error.name === "TokenExpiredError") {
-			next(new createError(400, "Token expired"));
+			return next(new createError(400, "Token expired"));
 		} else {
-			next(new createError(500, "Token not active"));
+			return next(new createError(500, "Token not active"));
 		}
 	}
 };

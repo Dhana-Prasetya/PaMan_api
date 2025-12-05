@@ -6,23 +6,23 @@ function paginationCheck(page, limit) {
 
 	// ------------------------ Input Validations ----------------------- //
 
-	const errors = {};
+	const paginationErrors = {};
 	if (
 		page < 1 ||
 		!pageIntCheck ||
 		page > PAGINATION_CONSTRAINT.MAX_PAGE_POSITION
 	) {
-		errors.page = `Page must be a positive integer between 1 and ${PAGINATION_CONSTRAINT.MAX_PAGE_POSITION} !`;
+		paginationErrors.page = `Page must be a positive integer between 1 and ${PAGINATION_CONSTRAINT.MAX_PAGE_POSITION} !`;
 	}
 	if (
 		limit < 1 ||
 		limit > PAGINATION_CONSTRAINT.MAX_ITEMS_PER_PAGE ||
 		!limitIntCheck
 	) {
-		errors.limit = `Limit must be a positive integer between 1 and ${PAGINATION_CONSTRAINT.MAX_ITEMS_PER_PAGE} !`;
+		paginationErrors.limit = `Limit must be a positive integer between 1 and ${PAGINATION_CONSTRAINT.MAX_ITEMS_PER_PAGE} !`;
 	}
 
-	return errors;
+	return paginationErrors;
 }
 
 module.exports = paginationCheck;

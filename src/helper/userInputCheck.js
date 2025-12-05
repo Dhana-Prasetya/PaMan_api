@@ -62,10 +62,7 @@ async function inputCheck({
 			phone_number.length > USER_CONSTRAINT.PHONE_NUMBER_MAX_VARCHAR ||
 			phone_number.length < USER_CONSTRAINT.PHONE_NUMBER_MIN_VARCHAR
 		) {
-			errors.phone_number =
-				"Phone number must contain only digits and be at most " +
-				USER_CONSTRAINT.PHONE_NUMBER_MAX_VARCHAR +
-				" characters long !";
+			errors.phone_number = `Phone number must contain only digits between ${USER_CONSTRAINT.PHONE_NUMBER_MIN_VARCHAR} and ${USER_CONSTRAINT.PHONE_NUMBER_MAX_VARCHAR} characters long !`;
 		}
 	}
 

@@ -87,6 +87,15 @@ app.use("/", (req, res) => {
 	});
 });
 
+// Centralized JSON error handler — convert http-errors to JSON responses
+app.use((err, req, res, next) => {
+	const status = err.status || err.statusCode || 500;
+	const message = err.message || "Internal Server Error";
+	// Log the error server-side for debugging
+	console.error("Unhandled error:", err);
+	res.status(status).json({ status, message });
+});
+
 app.listen(port, () => {
 	// Port listening
 	console.log(`\nServer running on http://localhost:${port}`);

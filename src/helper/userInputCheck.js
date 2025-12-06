@@ -20,18 +20,24 @@ async function inputCheck({
 	const errors = {}; // Object to hold every client errors
 
 	const allowedRegex = STRING_CONSTRAINT.ALLOWED_STRING_REGEX;
+	const maxUsernameLength = USER_CONSTRAINT.MAX_USERNAME_LENGTH;
+	const minUsernameLength = USER_CONSTRAINT.MIN_USERNAME_LENGTH;
+	const maxPhoneNumberLength = USER_CONSTRAINT.PHONE_NUMBER_MAX_VARCHAR;
+	const minPhoneNumberLength = USER_CONSTRAINT.PHONE_NUMBER_MIN_VARCHAR;
+	const maxMessageLength = CONTACT_CONSTRAINT.MAX_MESSAGE_VARCHAR;
+	const minMessageLength = CONTACT_CONSTRAINT.MIN_MESSAGE_VARCHAR;
 
 	if (username) {
 		const allowedUsernameCheck = allowedRegex.test(username);
 
 		if (
 			!isNaN(username) ||
-			username.length > USER_CONSTRAINT.MAX_USERNAME_LENGTH ||
-			username.length < USER_CONSTRAINT.MIN_USERNAME_LENGTH ||
+			username.length > maxUsernameLength ||
+			username.length < minUsernameLength ||
 			!allowedUsernameCheck
 		) {
 			// Input validation (client always send as string)
-			errors.username = `Username must contain letters and be between ${USER_CONSTRAINT.MIN_USERNAME_LENGTH} and ${USER_CONSTRAINT.MAX_USERNAME_LENGTH} characters long ! !`;
+			errors.username = `Username must contain letters and be between ${minUsernameLength} and ${maxUsernameLength} characters long ! !`;
 		}
 	}
 
@@ -41,11 +47,11 @@ async function inputCheck({
 		if (
 			!isNaN(name) ||
 			name.length > STRING_CONSTRAINT.MAX_VARCHAR ||
-			name.length < USER_CONSTRAINT.MIN_USERNAME_LENGTH ||
+			name.length < minUsernameLength ||
 			!allowedNameCheck
 		) {
 			// Input validation (client always send as string)
-			errors.name = `Name must contain letters and be between ${USER_CONSTRAINT.MIN_USERNAME_LENGTH} and ${STRING_CONSTRAINT.MAX_VARCHAR} characters long ! !`;
+			errors.name = `Name must contain letters and be between ${minUsernameLength} and ${STRING_CONSTRAINT.MAX_VARCHAR} characters long ! !`;
 		}
 	}
 
@@ -67,10 +73,10 @@ async function inputCheck({
 	if (phone_number) {
 		if (
 			isNaN(phone_number) ||
-			phone_number.length > USER_CONSTRAINT.PHONE_NUMBER_MAX_VARCHAR ||
-			phone_number.length < USER_CONSTRAINT.PHONE_NUMBER_MIN_VARCHAR
+			phone_number.length > maxPhoneNumberLength ||
+			phone_number.length < minPhoneNumberLength
 		) {
-			errors.phone_number = `Phone number must contain only digits between ${USER_CONSTRAINT.PHONE_NUMBER_MIN_VARCHAR} and ${USER_CONSTRAINT.PHONE_NUMBER_MAX_VARCHAR} characters long !`;
+			errors.phone_number = `Phone number must contain only digits between ${minPhoneNumberLength} and ${maxPhoneNumberLength} characters long !`;
 		}
 	}
 
@@ -102,9 +108,10 @@ async function inputCheck({
 	if (message) {
 		if (
 			!isNaN(message) ||
-			message.length > CONTACT_CONSTRAINT.MAX_MESSAGE_VARCHAR
+			message.length > maxMessageLength ||
+			message.length < minMessageLength
 		) {
-			errors.message = `Message must contain letters and be at most ${CONTACT_CONSTRAINT.MAX_MESSAGE_VARCHAR} characters long !`;
+			errors.message = `Message must contain letters and be between ${minMessageLength} and ${maxMessageLength} characters long !`;
 		}
 	}
 

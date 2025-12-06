@@ -14,6 +14,9 @@ const prisma = new PrismaClient();
 const adminController = {
 	Login: async (req, res, next) => {
 		try {
+			if (!req.body) {
+				return res.status(400).json({ message: "Request body is missing !" });
+			}
 			let { email, password } = req.body; // Take email and password from client
 
 			// ------------------------ Input Validations ----------------------- //
@@ -145,7 +148,7 @@ const adminController = {
 					res,
 					null,
 					400,
-					"Sort parameter is invalid and must contain letters ! The default params are 'all', while specific sort options: 'user', 'admin'."
+					"Sort parameter is invalid and must contain letters ! The default query sort are 'all', while specific sort options are 'user', 'admin'."
 				);
 			}
 

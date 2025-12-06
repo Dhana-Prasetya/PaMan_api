@@ -19,22 +19,30 @@ async function inputCheck({
 }) {
 	const errors = {}; // Object to hold every client errors
 
+	const allowedRegex = STRING_CONSTRAINT.ALLOWED_STRING_REGEX;
+
 	if (username) {
+		const allowedUsernameCheck = allowedRegex.test(username);
+
 		if (
 			!isNaN(username) ||
-			username.length > STRING_CONSTRAINT.MAX_VARCHAR ||
-			username.length < USER_CONSTRAINT.MIN_USERNAME_LENGTH
+			username.length > USER_CONSTRAINT.MAX_USERNAME_LENGTH ||
+			username.length < USER_CONSTRAINT.MIN_USERNAME_LENGTH ||
+			!allowedUsernameCheck
 		) {
 			// Input validation (client always send as string)
-			errors.username = `Username must contain letters and be between ${USER_CONSTRAINT.MIN_USERNAME_LENGTH} and ${STRING_CONSTRAINT.MAX_VARCHAR} characters long ! !`;
+			errors.username = `Username must contain letters and be between ${USER_CONSTRAINT.MIN_USERNAME_LENGTH} and ${USER_CONSTRAINT.MAX_USERNAME_LENGTH} characters long ! !`;
 		}
 	}
 
 	if (name) {
+		const allowedNameCheck = allowedRegex.test(name);
+
 		if (
 			!isNaN(name) ||
 			name.length > STRING_CONSTRAINT.MAX_VARCHAR ||
-			name.length < USER_CONSTRAINT.MIN_USERNAME_LENGTH
+			name.length < USER_CONSTRAINT.MIN_USERNAME_LENGTH ||
+			!allowedNameCheck
 		) {
 			// Input validation (client always send as string)
 			errors.name = `Name must contain letters and be between ${USER_CONSTRAINT.MIN_USERNAME_LENGTH} and ${STRING_CONSTRAINT.MAX_VARCHAR} characters long ! !`;

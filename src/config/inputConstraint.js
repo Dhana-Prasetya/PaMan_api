@@ -1,3 +1,5 @@
+const { MAX } = require("uuid");
+
 const ID_CONSTRAINT = {
 	MAX_INT: 10000, // Ten thousand
 	MIN_INT: 1, // One
@@ -14,6 +16,7 @@ const PRODUCT_CONSTRAINT = {
 	IN_STOCK: "In-stock",
 	OUT_OF_STOCK: "Out-of-stock",
 	MAX_TEXT_VARCHAR: 4000,
+	ORDER_STATUS_ENUM: ["Belum Bayar", "Dikemas", "Dikirim", "Selesai"],
 };
 
 const IMAGE_CONSTRAINT = {
@@ -29,6 +32,7 @@ const USER_CONSTRAINT = {
 	USER_ROLE: "user",
 	DEFAULT_IMAGE_FOLDER: "user_avatar",
 	MIN_USERNAME_LENGTH: 4, // Minimum username length
+	MAX_USERNAME_LENGTH: 20, // Maximum username length
 	FILE_NAME_PREFIX: "user_id-",
 };
 
@@ -44,6 +48,7 @@ const ADMIN_CONSTRAINT = {
 const STRING_CONSTRAINT = {
 	MAX_VARCHAR: 255, // Maximum length for VARCHAR in databases
 	MIN_VARCHAR: 1, // Minimum length for VARCHAR
+	ALLOWED_STRING_REGEX: /^[a-zA-Z0-9]+$/, // Allow lowercase and capitalcase letters and numbers only
 };
 
 const DATE_CONSTRAINT = {

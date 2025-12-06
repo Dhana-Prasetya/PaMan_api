@@ -1,4 +1,7 @@
-const { PRODUCT_CONSTRAINT } = require("../config/inputConstraint.js");
+const {
+	PRODUCT_CONSTRAINT,
+	STRING_CONSTRAINT,
+} = require("../config/inputConstraint.js");
 
 async function productInputCheck({
 	name,
@@ -13,9 +16,14 @@ async function productInputCheck({
 	const intStockCheck = Number.isInteger(Number(stock));
 	const intPriceCheck = Number.isInteger(Number(price));
 
-	if (!isNaN(name)) {
+	const allowedString = STRING_CONSTRAINT.ALLOWED_STRING_REGEX;
+
+	const allowedNameCheck = allowedString.test(name);
+	const allowedDescriptionCheck = allowedString.test(description);
+
+	if (!isNaN(name) || !allowedNameCheck) {
 		// Input validation (client always send as string)
-		productInputErrors.name = "Name must contain letters !";
+		productInputErrors.name = "Name must contain letters and numbers only!";
 	}
 
 	if (
@@ -38,7 +46,8 @@ async function productInputCheck({
 
 	if (
 		!isNaN(description) ||
-		description.length > PRODUCT_CONSTRAINT.MAX_TEXT_VARCHAR
+		description.length > PRODUCT_CONSTRAINT.MAX_TEXT_VARCHAR ||
+		!allowedDescriptionCheck
 	) {
 		// Input validation (client always send as string)
 		productInputErrors.description = `Description must contain letters and be at most ${PRODUCT_CONSTRAINT.MAX_TEXT_VARCHAR} characters long !`;

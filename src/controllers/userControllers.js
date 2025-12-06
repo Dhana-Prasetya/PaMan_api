@@ -14,6 +14,9 @@ const prisma = new PrismaClient();
 const userController = {
 	Register: async (req, res) => {
 		try {
+			if (!req.body) {
+				return res.status(400).json({ message: "Request body is missing !" });
+			}
 			let { username, phone_number, email, password, gender } = req.body;
 
 			// ------------------------ Input & Validations ----------------------- //
@@ -79,6 +82,9 @@ const userController = {
 
 	Login: async (req, res, next) => {
 		try {
+			if (!req.body) {
+				return res.status(400).json({ message: "Request body is missing !" });
+			}
 			let { email, password } = req.body; // Take email and password from client
 
 			// ------------------------ Input Validations ----------------------- //
@@ -205,6 +211,9 @@ const userController = {
 
 	EditProfileData: async (req, res, next) => {
 		try {
+			if (!req.body) {
+				return res.status(400).json({ message: "Request body is missing !" });
+			}
 			let {
 				username,
 				name = null,
@@ -387,6 +396,9 @@ const userController = {
 
 	ChangePassword: async (req, res, next) => {
 		try {
+			if (!req.body) {
+				return res.status(400).json({ message: "Request body is missing !" });
+			}
 			let { old_password, new_password, new_password_confirmation } = req.body;
 
 			const myProfile = await prisma.users.findUnique({
@@ -486,6 +498,9 @@ const userController = {
 
 	DeleteMyAccount: async (req, res, next) => {
 		try {
+			if (!req.body) {
+				return res.status(400).json({ message: "Request body is missing !" });
+			}
 			let { email, password } = req.body; // Take email and password from client
 
 			const myProfile = await prisma.users.findUnique({

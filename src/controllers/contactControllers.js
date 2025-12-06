@@ -7,6 +7,9 @@ const prisma = new PrismaClient();
 const contactController = {
 	Contact: async (req, res, next) => {
 		try {
+			if (!req.body) {
+				return res.status(400).json({ message: "Request body is missing !" });
+			}
 			const { username, email, message } = req.body;
 
 			if (!username || !email || !message) {

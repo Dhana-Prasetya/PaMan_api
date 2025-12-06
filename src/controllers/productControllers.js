@@ -7,12 +7,13 @@ const {
 	PRODUCT_CONSTRAINT,
 } = require("../config/inputConstraint.js");
 const { getCloudinaryPublicId } = require("../helper/getCloudinaryPublicId.js");
-const productIdCheck = require("../helper/productIdCheck.js");
+const productIdCheck = require("../helper/serial-id-check.js");
 const productInputCheck = require("../helper/productInputCheck.js");
 const paginationCheck = require("../helper/paginationCheck.js");
 const inputConstraint = require("../config/inputConstraint.js");
 const capitalizeFirstLetter = require("../helper/capitalizeFirstLetter.js");
 const pagination = require("../helper/pagination.js");
+const serialIdCheck = require("../helper/serial-id-check.js");
 
 const prisma = new PrismaClient();
 
@@ -76,11 +77,7 @@ const productController = {
 	GetDetailProduct: async (req, res) => {
 		// Get product by param id
 		try {
-			const id = Number(req.params.id);
-
-			// ------------------------ Input Validations ----------------------- //
-
-			let productIdErrors = {};
+			let id = req.params.id;
 
 			if (!id) {
 				return commonHelper.response(
@@ -91,11 +88,13 @@ const productController = {
 				);
 			}
 
-			productIdErrors = productIdCheck(id);
+			id = Number(id);
 
-			if (Object.keys(productIdErrors).length > 0) {
+			const idCheck = serialIdCheck(id);
+
+			if (idCheck !== true) {
 				// If there is any error, return the errors
-				return res.status(400).json({ productIdErrors });
+				return res.status(400).json({ idCheck });
 			}
 
 			// ------------------------ Input Validations ----------------------- //
@@ -130,6 +129,9 @@ const productController = {
 	InsertProduct: async (req, res) => {
 		// Adding product
 		try {
+			if (!req.body) {
+				return res.status(400).json({ message: "Request body is missing !" });
+			}
 			let {
 				name,
 				stock,
@@ -266,6 +268,10 @@ const productController = {
 		// Update by id
 		try {
 			// ------------------------ ID Input Validations ----------------------- //
+
+			if (!req.body) {
+				return res.status(400).json({ message: "Request body is missing !" });
+			}
 
 			const id = Number(req.params.id);
 
@@ -409,11 +415,9 @@ const productController = {
 	UpdateProductImage: async (req, res) => {
 		// Update by id
 		try {
-			const id = Number(req.params.id);
+			let id = req.params.id;
 
 			// ------------------------ ID Input Validations ----------------------- //
-
-			let productInputErrors = {};
 
 			if (!id) {
 				return commonHelper.response(
@@ -424,11 +428,13 @@ const productController = {
 				);
 			}
 
-			productInputErrors = productIdCheck(id);
+			id = Number(id);
 
-			if (Object.keys(productInputErrors).length > 0) {
+			const idCheck = serialIdCheck(id);
+
+			if (idCheck !== true) {
 				// If there is any error, return the errors
-				return res.status(400).json({ productInputErrors });
+				return res.status(400).json({ idCheck });
 			}
 
 			// ------------------------ ID Input Validations ----------------------- //

@@ -21,36 +21,36 @@ async function productInputCheck({
 	const allowedNameCheck = allowedString.test(name);
 	const allowedDescriptionCheck = allowedString.test(description);
 
+	const maxProductStock = PRODUCT_CONSTRAINT.MAX_STOCK;
+	const minProductStock = PRODUCT_CONSTRAINT.MIN_STOCK;
+
+	const maxProductPrice = PRODUCT_CONSTRAINT.MAX_PRICE;
+	const minProductPrice = PRODUCT_CONSTRAINT.MIN_PRICE;
+
+	const maxProductDescriptionLength = PRODUCT_CONSTRAINT.MAX_TEXT_VARCHAR;
+
 	if (!isNaN(name) || !allowedNameCheck) {
 		// Input validation (client always send as string)
 		productInputErrors.name = "Name must contain letters and numbers only!";
 	}
 
-	if (
-		!intStockCheck ||
-		stock < PRODUCT_CONSTRAINT.MIN_STOCK ||
-		stock > PRODUCT_CONSTRAINT.MAX_STOCK
-	) {
+	if (!intStockCheck || stock < minProductStock || stock > maxProductStock) {
 		// Input validation for stock
-		productInputErrors.stock = `Stock must be a positive integer with range ${PRODUCT_CONSTRAINT.MIN_STOCK} to ${PRODUCT_CONSTRAINT.MAX_STOCK} !`;
+		productInputErrors.stock = `Stock must be a positive integer with range ${minProductStock} to ${maxProductStock} !`;
 	}
 
-	if (
-		!intPriceCheck ||
-		price < PRODUCT_CONSTRAINT.MIN_PRICE ||
-		price > PRODUCT_CONSTRAINT.MAX_PRICE
-	) {
+	if (!intPriceCheck || price < minProductPrice || price > maxProductPrice) {
 		// Input validation for price
-		productInputErrors.price = `Price must be a positive integer with range ${PRODUCT_CONSTRAINT.MIN_PRICE} to ${PRODUCT_CONSTRAINT.MAX_PRICE} !`;
+		productInputErrors.price = `Price must be a positive integer with range ${minProductPrice} to ${maxProductPrice} !`;
 	}
 
 	if (
 		!isNaN(description) ||
-		description.length > PRODUCT_CONSTRAINT.MAX_TEXT_VARCHAR ||
+		description.length > maxProductDescriptionLength ||
 		!allowedDescriptionCheck
 	) {
 		// Input validation (client always send as string)
-		productInputErrors.description = `Description must contain letters and be at most ${PRODUCT_CONSTRAINT.MAX_TEXT_VARCHAR} characters long !`;
+		productInputErrors.description = `Description must contain letters and be at most ${maxProductDescriptionLength} characters long !`;
 	}
 
 	if (!PRODUCT_CONSTRAINT.CATEGORY_ENUM.includes(category)) {

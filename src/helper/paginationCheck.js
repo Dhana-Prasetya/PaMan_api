@@ -6,20 +6,15 @@ function paginationCheck(page, limit) {
 
 	// ------------------------ Input Validations ----------------------- //
 
+	const maxPagePosition = PAGINATION_CONSTRAINT.MAX_PAGE_POSITION;
+	const maxItemsPerPage = PAGINATION_CONSTRAINT.MAX_ITEMS_PER_PAGE;
+
 	const paginationErrors = {};
-	if (
-		page < 1 ||
-		!pageIntCheck ||
-		page > PAGINATION_CONSTRAINT.MAX_PAGE_POSITION
-	) {
-		paginationErrors.page = `Page must be a positive integer between 1 and ${PAGINATION_CONSTRAINT.MAX_PAGE_POSITION} !`;
+	if (page < 1 || !pageIntCheck || page > maxPagePosition) {
+		paginationErrors.page = `Page must be a positive integer between 1 and ${maxPagePosition} !`;
 	}
-	if (
-		limit < 1 ||
-		limit > PAGINATION_CONSTRAINT.MAX_ITEMS_PER_PAGE ||
-		!limitIntCheck
-	) {
-		paginationErrors.limit = `Limit must be a positive integer between 1 and ${PAGINATION_CONSTRAINT.MAX_ITEMS_PER_PAGE} !`;
+	if (limit < 1 || limit > maxItemsPerPage || !limitIntCheck) {
+		paginationErrors.limit = `Limit must be a positive integer between 1 and ${maxItemsPerPage} !`;
 	}
 
 	return paginationErrors;

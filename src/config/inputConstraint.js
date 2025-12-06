@@ -1,5 +1,3 @@
-const { MAX } = require("uuid");
-
 const ID_CONSTRAINT = {
 	MAX_INT: 10000, // Ten thousand
 	MIN_INT: 1, // One
@@ -38,6 +36,7 @@ const USER_CONSTRAINT = {
 
 const CONTACT_CONSTRAINT = {
 	MAX_MESSAGE_VARCHAR: 800,
+	MIN_MESSAGE_VARCHAR: 5,
 };
 
 const ADMIN_CONSTRAINT = {
@@ -48,7 +47,7 @@ const ADMIN_CONSTRAINT = {
 const STRING_CONSTRAINT = {
 	MAX_VARCHAR: 255, // Maximum length for VARCHAR in databases
 	MIN_VARCHAR: 1, // Minimum length for VARCHAR
-	ALLOWED_STRING_REGEX: /^[a-zA-Z0-9]+$/, // Allow lowercase and capitalcase letters and numbers only
+	ALLOWED_STRING_REGEX: /^[a-zA-Z 0-9]+$/, // Allow lowercase, capitalcase letters, numbers, and space only
 };
 
 const DATE_CONSTRAINT = {
@@ -64,9 +63,12 @@ const PAGINATION_CONSTRAINT = {
 };
 
 const USER_ADDRESS_CONSTRAINT = {
-	STREET_N_KECAMATAN: 255,
-	CITY_N_PROVINCE: 100,
-	POSTAL_CODE: 20,
+	MAX_STREET_N_KECAMATAN: 255,
+	MAX_CITY_N_PROVINCE: 100,
+	MIN_STREET_N_KECAMATAN: 3,
+	MIN_CITY_N_PROVINCE: 4,
+	POSTAL_CODE: 5, // Postal code length
+	ALLOWED_STRING_REGEX: /^[a-zA-Z0-9 .,]+$/, // Allow lowercase, capitalcase letters, dot, coma, numbers, and space only
 };
 
 module.exports = {

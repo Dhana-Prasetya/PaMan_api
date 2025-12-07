@@ -1,7 +1,4 @@
-const {
-	PRODUCT_CONSTRAINT,
-	STRING_CONSTRAINT,
-} = require("../config/inputConstraint.js");
+const { PRODUCT_CONSTRAINT } = require("../config/inputConstraint.js");
 
 async function productInputCheck({
 	name,
@@ -16,22 +13,31 @@ async function productInputCheck({
 	const intStockCheck = Number.isInteger(Number(stock));
 	const intPriceCheck = Number.isInteger(Number(price));
 
-	const allowedString = STRING_CONSTRAINT.ALLOWED_STRING_REGEX;
-
-	const allowedNameCheck = allowedString.test(name);
-	const allowedDescriptionCheck = allowedString.test(description);
-
 	const maxProductStock = PRODUCT_CONSTRAINT.MAX_STOCK;
 	const minProductStock = PRODUCT_CONSTRAINT.MIN_STOCK;
 
 	const maxProductPrice = PRODUCT_CONSTRAINT.MAX_PRICE;
 	const minProductPrice = PRODUCT_CONSTRAINT.MIN_PRICE;
 
+	const maxProductNameLength = PRODUCT_CONSTRAINT.MAX_NAME_VARCHAR;
+	const minProductNameLength = PRODUCT_CONSTRAINT.MIN_NAME_VARCHAR;
+
+	const allowedNameRegex = PRODUCT_CONSTRAINT.ALLOWED_NAME_REGEX;
+	const allowedDescriptionRegex = PRODUCT_CONSTRAINT.ALLOWED_DESCRIPTION_REGEX;
+
+	const allowedNameCheck = allowedNameRegex.test(name); // Validate name against allowed regex
+	const allowedDescriptionCheck = allowedDescriptionRegex.test(description);
+
 	const maxProductDescriptionLength = PRODUCT_CONSTRAINT.MAX_TEXT_VARCHAR;
 
-	if (!isNaN(name) || !allowedNameCheck) {
+	if (
+		!isNaN(name) ||
+		name.length > maxProductNameLength ||
+		name.length < minProductNameLength ||
+		!allowedNameCheck
+	) {
 		// Input validation (client always send as string)
-		productInputErrors.name = "Name must contain letters and numbers only!";
+		productInputErrors.name = `Product name must contain letters and be between ${minProductNameLength} and ${maxProductNameLength}. Other allowed but optional expression are number, space, and these symbol = (- . , _ - : = ' " () # & | / = ~)`;
 	}
 
 	if (!intStockCheck || stock < minProductStock || stock > maxProductStock) {
@@ -50,7 +56,7 @@ async function productInputCheck({
 		!allowedDescriptionCheck
 	) {
 		// Input validation (client always send as string)
-		productInputErrors.description = `Description must contain letters and be at most ${maxProductDescriptionLength} characters long !`;
+		productInputErrors.description = `Description must contain letters and be at most ${maxProductDescriptionLength} characters long. Other allowed but optional expression are number, space, and these symbol = (- . , _ - : = ' " () # & | / = ~) are allowed symbols !`;
 	}
 
 	if (!PRODUCT_CONSTRAINT.CATEGORY_ENUM.includes(category)) {

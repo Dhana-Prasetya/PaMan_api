@@ -7,7 +7,7 @@ const {
 } = require("../config/inputConstraint.js");
 const isValidYYYYMMDD = require("./isValidYYYYMMDD.js");
 
-async function inputCheck({
+async function userProfileInputCheck({
 	username = null,
 	name = null,
 	email = null,
@@ -37,7 +37,7 @@ async function inputCheck({
 			!allowedUsernameCheck
 		) {
 			// Input validation (client always send as string)
-			errors.username = `Username must contain letters and be between ${minUsernameLength} and ${maxUsernameLength} characters long ! !`;
+			errors.username = `Username can only contain letters, number, and space and be between ${minUsernameLength} and ${maxUsernameLength} characters long !`;
 		}
 	}
 
@@ -51,7 +51,7 @@ async function inputCheck({
 			!allowedNameCheck
 		) {
 			// Input validation (client always send as string)
-			errors.name = `Name must contain letters and be between ${minUsernameLength} and ${STRING_CONSTRAINT.MAX_VARCHAR} characters long ! !`;
+			errors.name = `Name can only contain letters, number, and space and be between ${minUsernameLength} and ${STRING_CONSTRAINT.MAX_VARCHAR} characters long !`;
 		}
 	}
 
@@ -71,12 +71,14 @@ async function inputCheck({
 	}
 
 	if (phone_number) {
+		const positiveCheck = Number(phone_number);
 		if (
 			isNaN(phone_number) ||
 			phone_number.length > maxPhoneNumberLength ||
-			phone_number.length < minPhoneNumberLength
+			phone_number.length < minPhoneNumberLength ||
+			positiveCheck < 1
 		) {
-			errors.phone_number = `Phone number must contain only digits between ${minPhoneNumberLength} and ${maxPhoneNumberLength} characters long !`;
+			errors.phone_number = `Phone number must contain only positive integer digits between ${minPhoneNumberLength} and ${maxPhoneNumberLength} characters long !`;
 		}
 	}
 
@@ -118,4 +120,4 @@ async function inputCheck({
 	return errors;
 }
 
-module.exports = inputCheck;
+module.exports = userProfileInputCheck;

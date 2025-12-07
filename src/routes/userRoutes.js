@@ -36,6 +36,6 @@ router.delete(
 );
 
 // Order user routes
-// router.post("/order/:id", userAuth, userOrderControllers.OrderProductDirectly);
+router.post("/order/:id", userAuth, userOrderControllers.OrderProductDirectly);
 
 module.exports = router;

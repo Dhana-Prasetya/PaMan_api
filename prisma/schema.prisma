@@ -20,6 +20,8 @@ model users {
   birthday      DateTime?      @db.Date
   temp_token    String?        @db.VarChar(300)
   name          String?        @db.VarChar(255)
+  carts         carts?
+  orders        orders[]
   user_address  user_address[]
 }
 
@@ -35,6 +37,8 @@ model products {
   discounted_price Int?
   total_reviews    Int?                  @default(0)
   average_rating   Decimal?              @default(0.0) @db.Decimal(2, 1)
+  carts_item       carts_item[]
+  ordered_item     ordered_item[]
 }
 
 model admin {
@@ -62,9 +66,52 @@ model user_address {
   kecamatan   String   @db.VarChar(255)
   city        String   @db.VarChar(100)
   province    String   @db.VarChar(100)
-  postal_code String   @db.VarChar(20)
+  postal_code String   @db.VarChar(5)
   is_default  Boolean? @default(false)
   users       users    @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model ordered_item {
+  id             Int      @id @default(autoincrement())
+  order_id       Int
+  product_id     Int
+  quantity       Int
+  price_at_order Int
+  orders         orders   @relation(fields: [order_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  products       products @relation(fields: [product_id], references: [id], onUpdate: NoAction)
+
+  @@unique([order_id, product_id])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model orders {
+  id           Int               @id @default(autoincrement())
+  user_id      String            @db.Uuid
+  order_date   DateTime?         @default(now()) @db.Timestamptz(6)
+  total_price  Int
+  order_status order_status_enum
+  ordered_item ordered_item[]
+  users        users             @relation(fields: [user_id], references: [id], onUpdate: NoAction)
+}
+
+model carts {
+  id         Int          @id @default(autoincrement())
+  user_id    String       @unique @db.Uuid
+  users      users        @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  carts_item carts_item[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model carts_item {
+  id         Int      @id(map: "cart_item_pkey") @default(autoincrement())
+  cart_id    Int
+  product_id Int
+  quantity   Int
+  carts      carts    @relation(fields: [cart_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "cart_item_carts_id_fkey")
+  products   products @relation(fields: [product_id], references: [id], onUpdate: NoAction, map: "cart_item_product_id_fkey")
+
+  @@unique([cart_id, product_id], map: "cart_item_carts_id_product_id_key")
 }
 
 enum gender_enum {

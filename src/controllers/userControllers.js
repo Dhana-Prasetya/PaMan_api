@@ -4,7 +4,7 @@ const commonHelper = require("../helper/common.js");
 const { PrismaClient, Prisma } = require("@prisma/client");
 const { cloudinary } = require("../middleware/cloudinary.js");
 const { USER_CONSTRAINT } = require("../config/inputConstraint.js");
-const userInputCheck = require("../helper/userInputCheck.js");
+const userProfileInputCheck = require("../helper/userProfileInputCheck.js");
 const { getCloudinaryPublicId } = require("../helper/getCloudinaryPublicId.js");
 const zodValidator = require("zod");
 
@@ -28,7 +28,7 @@ const userController = {
 				return res.status(400).json({ message: "All fields are required !" });
 			}
 
-			errors = await userInputCheck({
+			errors = await userProfileInputCheck({
 				username,
 				email,
 				password,
@@ -97,7 +97,7 @@ const userController = {
 
 			let errors = {}; // Object to hold every client errors
 
-			errors = await userInputCheck({
+			errors = await userProfileInputCheck({
 				email,
 				password,
 			});
@@ -249,7 +249,7 @@ const userController = {
 				});
 			}
 
-			errors = await userInputCheck({
+			errors = await userProfileInputCheck({
 				username,
 				email,
 				phone_number,
@@ -529,7 +529,7 @@ const userController = {
 
 			let errors = {}; // Object to hold every client errors
 
-			errors = await userInputCheck({
+			errors = await userProfileInputCheck({
 				email,
 				password,
 			});

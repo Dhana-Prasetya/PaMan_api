@@ -1,7 +1,4 @@
-const {
-	USER_ADDRESS_CONSTRAINT,
-	STRING_CONSTRAINT,
-} = require("../config/inputConstraint");
+const { USER_ADDRESS_CONSTRAINT } = require("../config/inputConstraint");
 
 function userAddressInputCheck({
 	street,
@@ -34,7 +31,7 @@ function userAddressInputCheck({
 		!allowedStreetCheck ||
 		!isNaN(street)
 	) {
-		errors.street = `Street must contains letters and be between ${MIN_STREET_N_KECAMATAN} and ${MAX_STREET_N_KECAMATAN} characters long`;
+		errors.street = `Street can only contain letters, numbers, spaces, dots, and commas and be between ${MIN_STREET_N_KECAMATAN} and ${MAX_STREET_N_KECAMATAN} characters long`;
 	}
 
 	console.log(street.length, kecamatan.length);
@@ -45,7 +42,7 @@ function userAddressInputCheck({
 		!allowedKecamatanCheck ||
 		!isNaN(kecamatan)
 	) {
-		errors.kecamatan = `Kecamatan must contains letters and be between ${MIN_STREET_N_KECAMATAN} and ${MAX_STREET_N_KECAMATAN} characters long`;
+		errors.kecamatan = `Kecamatan can only contain letters, numbers, spaces, dots, and commas and be between ${MIN_STREET_N_KECAMATAN} and ${MAX_STREET_N_KECAMATAN} characters long`;
 	}
 
 	if (
@@ -54,7 +51,7 @@ function userAddressInputCheck({
 		!allowedCityCheck ||
 		!isNaN(city)
 	) {
-		errors.city = `City must contains letters and be between ${MIN_CITY_N_PROVINCE} and ${MAX_CITY_N_PROVINCE} characters long`;
+		errors.city = `City can only contain letters, numbers, spaces, dots, and commas and be between ${MIN_CITY_N_PROVINCE} and ${MAX_CITY_N_PROVINCE} characters long`;
 	}
 
 	if (
@@ -63,7 +60,7 @@ function userAddressInputCheck({
 		!allowedProvinceCheck ||
 		!isNaN(province)
 	) {
-		errors.province = `Province must contains letters and be between ${MIN_CITY_N_PROVINCE} and ${MAX_CITY_N_PROVINCE} characters long`;
+		errors.province = `Province can only contain letters, numbers, spaces, dots, and commas and be between ${MIN_CITY_N_PROVINCE} and ${MAX_CITY_N_PROVINCE} characters long`;
 	}
 
 	if (
@@ -72,7 +69,7 @@ function userAddressInputCheck({
 		!postal_code_int ||
 		postal_code_num < 1
 	) {
-		errors.postal_code = `Postal code must be at ${POSTAL_CODE_LENGTH} characters long and must be an integer number`;
+		errors.postal_code = `Postal code must be at ${POSTAL_CODE_LENGTH} characters long and must be an positive integer number`;
 	}
 
 	return errors;

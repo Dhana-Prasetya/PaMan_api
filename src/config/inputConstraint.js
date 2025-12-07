@@ -14,7 +14,11 @@ const PRODUCT_CONSTRAINT = {
 	IN_STOCK: "In-stock",
 	OUT_OF_STOCK: "Out-of-stock",
 	MAX_TEXT_VARCHAR: 4000,
+	MAX_NAME_VARCHAR: 255,
+	MIN_NAME_VARCHAR: 3,
 	ORDER_STATUS_ENUM: ["Belum Bayar", "Dikemas", "Dikirim", "Selesai"],
+	ALLOWED_NAME_REGEX: /^[a-zA-Z0-9\s\-_,.*:()#&|/=~]{3,255}$/, // Allow lower-capital case, num, space, and these symbols = (- . , _ - : = ' " () # & | / = ~)
+	ALLOWED_DESCRIPTION_REGEX: /^[a-zA-Z0-9\s\-_,.*:()#&|/=~]{0,4000}$/, // Allow lower-capital case, num, space, and these symbols = (- . , _ - : = ' " () # & | / = ~)
 };
 
 const IMAGE_CONSTRAINT = {
@@ -29,7 +33,7 @@ const USER_CONSTRAINT = {
 	DEFAULT_USER_AVATAR_URL: process.env.CLOUDINARY_DEFAULT_USER_AVATAR_URL,
 	USER_ROLE: "user",
 	DEFAULT_IMAGE_FOLDER: "user_avatar",
-	MIN_USERNAME_LENGTH: 4, // Minimum username length
+	MIN_USERNAME_LENGTH: 3, // Minimum username length
 	MAX_USERNAME_LENGTH: 20, // Maximum username length
 	FILE_NAME_PREFIX: "user_id-",
 };

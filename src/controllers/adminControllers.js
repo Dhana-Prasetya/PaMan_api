@@ -516,7 +516,26 @@ const adminController = {
 							);
 						}
 
-						// Update Operation
+						const ifAlreadyCompleted = await tx.orders.findUnique({
+							where: { id: orderId },
+							select: { order_status: true },
+							relationLoadStrategy: "join",
+						});
+
+						if (ifAlreadyCompleted.order_status === "Selesai") {
+							throw new Error("ALREADY_COMPLETED");
+						}
+
+						if (status === "Selesai") {
+							const completePayment =
+								await tx.$executeRaw` -- Raw query to update payment status and amount_paid
+								UPDATE "payments" 
+								SET "amount_paid" = "amount_to_pay", 
+									"payment_status" = 'Sukses' 
+								WHERE "order_id" = ${orderId};
+							`;
+						}
+
 						const updated = await tx.orders.update({
 							where: { id: orderId },
 							data: { order_status: status },
@@ -545,6 +564,14 @@ const adminController = {
 					null,
 					404,
 					"One or more order IDs were not found!"
+				);
+			}
+			if (error.message === "ALREADY_COMPLETED") {
+				return commonHelper.response(
+					res,
+					null,
+					403,
+					"One of the id have been completed, cannot update completed order status !"
 				);
 			}
 			console.error(error);

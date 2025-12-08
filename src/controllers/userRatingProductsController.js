@@ -1,8 +1,8 @@
-const { Prisma } = require("@prisma/client");
+const { PrismaClient } = require("@prisma/client");
 const commonHelper = require("../helper/common");
 const serialIdCheck = require("../helper/serial-id-check");
 
-const prisma = new Prisma.PrismaClient();
+const prisma = new PrismaClient();
 
 const userRatingProductsController = {
 	RateProduct: async (req, res) => {
@@ -16,15 +16,16 @@ const userRatingProductsController = {
 				);
 			}
 
-			let { product_id } = req.params;
+			let { id } = req.params;
 
 			let { review, rating } = req.body;
 
-			product_id = Number(product_id);
+			id = Number(id);
+			rating = Number(rating);
 
 			// ----------------------- Input Validations -----------------------
 
-			const idCheck = serialIdCheck(product_id);
+			const idCheck = serialIdCheck(id);
 
 			if (idCheck !== true) {
 				// If there is any error, return the errors
@@ -41,7 +42,7 @@ const userRatingProductsController = {
 			}
 
 			const productExists = await prisma.products.findUnique({
-				where: { id: product_id },
+				where: { id: id },
 				relationLoadStrategy: "join",
 			});
 
@@ -62,7 +63,7 @@ const userRatingProductsController = {
 					order_status: "Selesai",
 					ordered_item: {
 						some: {
-							product_id: product_id,
+							product_id: id,
 						},
 					},
 				},
@@ -74,15 +75,18 @@ const userRatingProductsController = {
 			});
 
 			if (!isEligibleToRate) {
-				throw new Error(
+				return commonHelper.response(
+					res,
+					null,
+					403,
 					"You must purchase and receive this product before rating."
 				);
 			}
 
-			const addReviewAndRating = await prisma.product_reviews.create({
+			const addReviewAndRating = await prisma.product_review.create({
 				data: {
 					user_id: req.user.id,
-					product_id: product_id,
+					product_id: id,
 					review: review,
 					rating: rating,
 				},
@@ -94,6 +98,14 @@ const userRatingProductsController = {
 				"Review and rating added successfully!"
 			);
 		} catch (error) {
+			if (error.code === "P2002") {
+				return commonHelper.response(
+					res,
+					null,
+					409,
+					"User have already reviewed this product."
+				);
+			}
 			console.error(`\n${error}\n`);
 			return commonHelper.response(res, null, 500, "Internal server error !");
 		}

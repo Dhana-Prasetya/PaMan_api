@@ -344,9 +344,185 @@ const userCartControllers = {
 
 	CheckoutProductFromCart: async (req, res) => {
 		try {
-			console.log("");
+			if (!req.body) {
+				return commonHelper.response(
+					res,
+					null,
+					400,
+					"Request body is missing !"
+				);
+			}
+			let { address_id, payment_method, selected_items } = req.body;
+			// selected_items format: [{ product_id: 1, quantity: 2 }, { product_id: 5, quantity: 1 }]
+
+			// ------------------------ Input Validations ----------------------- //
+			if (!address_id || !payment_method || !selected_items) {
+				return commonHelper.response(
+					res,
+					null,
+					400,
+					"Address ID, payment method, and selected items are required !"
+				);
+			}
+
+			address_id = Number(address_id);
+
+			const addressCheck = serialIdCheck(address_id);
+
+			if (addressCheck !== true) {
+				// If there is any error, return the errors
+				return commonHelper.response(res, null, 400, addressCheck);
+			}
+
+			const checkAddress = await prisma.user_address.findFirst({
+				where: {
+					id: address_id,
+					user_id: req.user.id,
+				},
+			});
+
+			if (!checkAddress) {
+				return commonHelper.response(
+					res,
+					null,
+					404,
+					"Address not found for the user."
+				);
+			}
+
+			const userId = req.user.id;
+
+			// 1. Validation for the array
+			if (!Array.isArray(selected_items) || selected_items.length === 0) {
+				return commonHelper.response(
+					res,
+					null,
+					400,
+					"Please select at least one item to checkout."
+				);
+			}
+
+			// ------------------------ Input Validations ----------------------- //
+
+			const productIds = selected_items.map((item) => item.product_id);
+
+			const checkoutTransaction = await prisma.$transaction(
+				async (tx) => {
+					// 2. Fetch specific items from the cart matching the user's selection
+					const userCart = await tx.carts.findUnique({
+						where: { user_id: userId },
+						include: {
+							carts_items: {
+								where: { product_id: { in: productIds } }, // Filter by selected IDs
+								include: { products: true },
+							},
+						},
+					});
+
+					if (!userCart || userCart.carts_items.length === 0) {
+						throw new Error("SELECTED_ITEMS_NOT_FOUND_IN_CART");
+					}
+
+					let totalAmount = 0;
+					const orderItemsData = [];
+
+					// 3. Loop through SELECTED items
+					for (const item of userCart.carts_items) {
+						const product = item.products;
+
+						// IMPORTANT: Use the quantity from the INPUT, not the Cart total
+						const inputItem = selected_items.find(
+							(si) => si.product_id === product.id
+						);
+						const orderQuantity = inputItem.quantity;
+
+						if (product.stock < orderQuantity) {
+							throw new Error(`INSUFFICIENT_STOCK_${product.name}`);
+						}
+
+						const price = product.discounted_price || product.price;
+						totalAmount += price * orderQuantity;
+
+						orderItemsData.push({
+							product_id: product.id,
+							quantity: orderQuantity,
+							price_at_order: price,
+						});
+
+						// Deduct Stock
+						await tx.products.update({
+							where: { id: product.id },
+							data: { stock: { decrement: orderQuantity } },
+						});
+					}
+
+					// 4. Create Order and Payment (Standard logic)
+					const newOrder = await tx.orders.create({
+						data: {
+							user_id: userId,
+							total_price: totalAmount,
+							order_status: "Dikemas",
+							destination: address_id,
+						},
+					});
+
+					await tx.ordered_item.createMany({
+						data: orderItemsData.map((item) => ({
+							...item,
+							order_id: newOrder.id,
+						})),
+					});
+
+					await tx.payments.create({
+						data: {
+							order_id: newOrder.id,
+							payment_method,
+							amount_to_pay: totalAmount,
+							payment_status: "Proses",
+							amount_paid: 0,
+						},
+					});
+
+					// 5. SELECTIVE REMOVAL: Only remove the items ordered
+					await tx.carts_items.deleteMany({
+						where: {
+							cart_id: userCart.id,
+							product_id: { in: productIds },
+						},
+					});
+
+					return newOrder;
+				},
+				{
+					isolationLevel: "RepeatableRead",
+					timeout: 20000,
+				}
+			);
+
+			return commonHelper.response(
+				res,
+				checkoutTransaction,
+				201,
+				"Checkout successful!"
+			);
 		} catch (error) {
-			console.error(error);
+			if (error.message === "SELECTED_ITEMS_NOT_FOUND_IN_CART") {
+				return commonHelper.response(
+					res,
+					null,
+					404,
+					"Selected items not found in cart."
+				);
+			}
+			if (error.message.startsWith("INSUFFICIENT_STOCK_")) {
+				const productName = error.message.replace("INSUFFICIENT_STOCK_", "");
+				return commonHelper.response(
+					res,
+					null,
+					400,
+					`Insufficient stock for product: ${productName}`
+				);
+			}
 			return commonHelper.response(res, null, 500, "Internal server error");
 		}
 	},

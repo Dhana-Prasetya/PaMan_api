@@ -7,9 +7,9 @@ const {
 } = require("../config/inputConstraint.js");
 const isValidYYYYMMDD = require("./isValidYYYYMMDD.js");
 
-async function userProfileInputCheck({
+function userProfileInputCheck({
 	username = null,
-	name = null,
+	fullname = null,
 	email = null,
 	password = null,
 	phone_number = null,
@@ -41,17 +41,17 @@ async function userProfileInputCheck({
 		}
 	}
 
-	if (name) {
-		const allowedNameCheck = allowedRegex.test(name);
+	if (fullname) {
+		const allowedNameCheck = allowedRegex.test(fullname);
 
 		if (
-			!isNaN(name) ||
-			name.length > STRING_CONSTRAINT.MAX_VARCHAR ||
-			name.length < minUsernameLength ||
+			!isNaN(fullname) ||
+			fullname.length > STRING_CONSTRAINT.MAX_VARCHAR ||
+			fullname.length < minUsernameLength ||
 			!allowedNameCheck
 		) {
 			// Input validation (client always send as string)
-			errors.name = `Name can only contain letters, number, and space and be between ${minUsernameLength} and ${STRING_CONSTRAINT.MAX_VARCHAR} characters long !`;
+			errors.fullname = `Fullname can only contain letters, number, and space and be between ${minUsernameLength} and ${STRING_CONSTRAINT.MAX_VARCHAR} characters long !`;
 		}
 	}
 

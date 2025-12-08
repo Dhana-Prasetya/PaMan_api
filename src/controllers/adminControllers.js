@@ -2,12 +2,14 @@ const { generateToken } = require("../helper/auth");
 const bcrypt = require("bcryptjs");
 const commonHelper = require("../helper/common.js");
 const zodValidator = require("zod");
-const { PrismaClient } = require("@prisma/client");
+const { PrismaClient, Prisma } = require("@prisma/client");
 const {
 	STRING_CONSTRAINT,
 	PAGINATION_CONSTRAINT,
+	ORDER_CONSTRAINT,
 } = require("../config/inputConstraint.js");
 const paginationCheck = require("../helper/paginationCheck.js");
+const serialIdCheck = require("../helper/serial-id-check.js");
 
 const prisma = new PrismaClient();
 
@@ -58,6 +60,7 @@ const adminController = {
 					role: true,
 					avatar_url: true,
 				},
+				relationLoadStrategy: "join",
 			});
 
 			if (!dataInDb) {
@@ -291,6 +294,322 @@ const adminController = {
 			);
 		} catch (error) {
 			console.error(`\n${error}\n`);
+			return commonHelper.response(res, null, 500, "Internal Server Error");
+		}
+	},
+
+	GetTop3ProductsAndCategory: async (req, res) => {
+		try {
+			const getTop3ProductsAndCategoryTransaction = await prisma.$transaction(
+				async (tx) => {
+					const top3Products = await tx.$queryRaw`
+						SELECT 
+							p.name, 
+							SUM(oi.quantity)::INT as total_sold -- ::INT prevents the BigInt error
+						FROM "ordered_item" oi
+						JOIN "products" p ON oi."product_id" = p.id
+						GROUP BY p.name
+						ORDER BY total_sold DESC
+						LIMIT 3;
+						`;
+					const top3Categories = await tx.$queryRaw`
+						SELECT 
+							p.category, 
+							SUM(oi.quantity) as total_sold
+						FROM "ordered_item" oi
+						JOIN "products" p ON oi.product_id = p.id
+						GROUP BY p.category
+						ORDER BY total_sold DESC
+						LIMIT 3;
+					`;
+
+					const productsPayload = {
+						top3Products,
+					};
+
+					const categoriesPayload = {
+						top3Categories,
+					};
+
+					const payload = {
+						productsPayload,
+						categoriesPayload,
+					};
+
+					return payload;
+				},
+				{
+					isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead,
+					setTimeout: 10000,
+				}
+			);
+
+			return commonHelper.response(
+				res,
+				getTop3ProductsAndCategoryTransaction,
+				200,
+				"Top 3 products and categories fetched successfully !"
+			);
+		} catch (error) {
+			console.error(`\n${error}\n`);
+			return commonHelper.response(res, null, 500, "Internal Server Error");
+		}
+	},
+
+	GetPaginatedUserOrders: async (req, res) => {
+		try {
+			let {
+				page = PAGINATION_CONSTRAINT.DEFAULT_PAGE_POSITION,
+				limit = PAGINATION_CONSTRAINT.DEFAULT_ITEMS_PER_PAGE,
+			} = req.query;
+
+			// ------------------------ Input Validations ----------------------- //
+
+			page = Number(page);
+			limit = Number(limit);
+
+			let paginationErrors = {};
+			paginationErrors = paginationCheck(page, limit);
+
+			if (Object.keys(paginationErrors).length > 0) {
+				// If there is any error, return the errors
+				return res.status(400).json({ paginationErrors });
+			}
+
+			// ------------------------ Input Validations ----------------------- //
+
+			// ------------------------ Pagination Logic ----------------------- //
+			const skip = (page - 1) * limit;
+			let total = await prisma.orders.count();
+			const totalPages = Math.ceil(total / limit);
+			// ------------------------ Pagination Logic ----------------------- //
+
+			const getPaginatedUserOrders = await prisma.orders.findMany({
+				select: {
+					order_status: true,
+					total_price: true,
+					order_date: true,
+					users: {
+						select: { avatar_url: true, email: true },
+					},
+				},
+				skip,
+				take: limit,
+				orderBy: { id: "asc" },
+			});
+
+			const payload = {
+				page,
+				limit,
+				total,
+				totalPages,
+				getPaginatedUserOrders,
+			};
+
+			return commonHelper.response(
+				res,
+				payload,
+				200,
+				"List of paginated user orders fetched !"
+			);
+		} catch (error) {
+			console.error(`\n${error}\n`);
+			return commonHelper.response(res, null, 500, "Internal Server Error");
+		}
+	},
+
+	GetUserOrderDetail: async (req, res) => {
+		try {
+			let { id } = req.params;
+
+			// ------------------------ Input Validations ----------------------- //
+			id = Number(id);
+			const idCheck = serialIdCheck(id);
+
+			if (!idCheck) {
+				return commonHelper.response(res, null, 400, "Order ID is invalid !");
+			}
+
+			// ------------------------ Input Validations ----------------------- //
+
+			const getUserOrdersDetail = await prisma.orders.findUnique({
+				where: { id: id },
+				select: {
+					id: true,
+					order_status: true,
+					ordered_item: {
+						select: {
+							quantity: true,
+							price_at_order: true,
+							products: {
+								select: { name: true, photo_url: true },
+							},
+						},
+					},
+					users: {
+						select: { fullname: true, phone_number: true },
+					},
+					user_address: {
+						select: {
+							street: true,
+							kecamatan: true,
+							city: true,
+							province: true,
+							postal_code: true,
+							detail: true,
+						},
+					},
+					payments: {
+						select: {
+							amount_to_pay: true,
+						},
+					},
+				},
+				relationLoadStrategy: "join",
+			});
+
+			return commonHelper.response(
+				res,
+				getUserOrdersDetail,
+				200,
+				"Detail of user orders fetched !"
+			);
+		} catch (error) {
+			if (error.code === "P2025") {
+				return commonHelper.response(res, null, 404, "Order ID not found !");
+			}
+			console.error(`\n${error}\n`);
+			return commonHelper.response(res, null, 500, "Internal Server Error");
+		}
+	},
+
+	ChangeMultipleUserOrdersStatus: async (req, res) => {
+		try {
+			const { updates } = req.body;
+
+			// 1. Initial Validation
+			if (!Array.isArray(updates) || updates.length === 0) {
+				return commonHelper.response(
+					res,
+					null,
+					400,
+					"Updates array is required!"
+				);
+			}
+
+			// 2. Execution via Transaction for Atomicity
+			const results = await prisma.$transaction(
+				async (tx) => {
+					const updatedRecords = [];
+
+					for (const update of updates) {
+						const [orderIdStr, status] = update;
+						const orderId = Number(orderIdStr);
+
+						// Per-item Validation
+						if (
+							isNaN(orderId) ||
+							!ORDER_CONSTRAINT.STATUS_ENUM.includes(status)
+						) {
+							throw new Error(
+								`Invalid data: ID ${orderIdStr} or Status ${status}`
+							);
+						}
+
+						// Update Operation
+						const updated = await tx.orders.update({
+							where: { id: orderId },
+							data: { order_status: status },
+						});
+
+						updatedRecords.push(updated);
+					}
+					return updatedRecords;
+				},
+				{
+					isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead,
+					setTimeout: 15000,
+				}
+			);
+
+			return commonHelper.response(
+				res,
+				results,
+				200,
+				"All order statuses updated successfully!"
+			);
+		} catch (error) {
+			if (error.code === "P2025") {
+				return commonHelper.response(
+					res,
+					null,
+					404,
+					"One or more order IDs were not found!"
+				);
+			}
+			console.error(error);
+			return commonHelper.response(res, null, 500, "Internal Server Error");
+		}
+	},
+
+	DeleteMultipleOrders: async (req, res) => {
+		try {
+			const { deletes } = req.body;
+
+			// 1. Initial Validation
+			if (!Array.isArray(deletes) || deletes.length === 0) {
+				return commonHelper.response(
+					res,
+					null,
+					400,
+					"Updates array is required!"
+				);
+			}
+
+			// 2. Execution via Transaction for Atomicity
+			const results = await prisma.$transaction(
+				async (tx) => {
+					const updatedRecords = [];
+
+					for (const del of deletes) {
+						const [orderIdStr] = del;
+						const orderId = Number(orderIdStr);
+
+						const deletingPayments = await tx.payments.deleteMany({
+							where: { order_id: orderId },
+						});
+
+						// Update Operation
+						const updated = await tx.orders.delete({
+							where: { id: orderId },
+						});
+
+						updatedRecords.push(updated);
+					}
+					return updatedRecords;
+				},
+				{
+					isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead,
+					setTimeout: 15000,
+				}
+			);
+
+			return commonHelper.response(
+				res,
+				results,
+				200,
+				"All selected orders deleted successfully!"
+			);
+		} catch (error) {
+			if (error.code === "P2025") {
+				return commonHelper.response(
+					res,
+					null,
+					404,
+					"One or more order IDs were not found!"
+				);
+			}
+			console.error(error);
 			return commonHelper.response(res, null, 500, "Internal Server Error");
 		}
 	},

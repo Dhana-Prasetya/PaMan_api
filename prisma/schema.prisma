@@ -1,5 +1,6 @@
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["relationJoins"]
 }
 
 datasource db {
@@ -8,21 +9,22 @@ datasource db {
 }
 
 model users {
-  id            String         @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  username      String         @unique @db.VarChar(255)
-  phone_number  String         @unique @db.VarChar(20)
-  email         String         @unique @db.VarChar(255)
-  password      String         @db.VarChar(255)
-  gender        gender_enum
-  role          String         @db.VarChar(10)
-  avatar_url    String?        @db.VarChar(255)
-  register_date DateTime?      @default(now()) @db.Timestamptz(6)
-  birthday      DateTime?      @db.Date
-  temp_token    String?        @db.VarChar(300)
-  name          String?        @db.VarChar(255)
-  carts         carts?
-  orders        orders[]
-  user_address  user_address[]
+  id             String           @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  username       String           @unique @db.VarChar(20)
+  phone_number   String           @unique @db.VarChar(20)
+  email          String           @unique @db.VarChar(255)
+  password       String           @db.VarChar(255)
+  gender         gender_enum
+  role           String           @db.VarChar(10)
+  avatar_url     String?          @db.VarChar(255)
+  register_date  DateTime?        @default(now()) @db.Timestamptz(6)
+  birthday       DateTime?        @db.Date
+  temp_token     String?          @db.VarChar(300)
+  fullname       String           @db.VarChar(255)
+  carts          carts?
+  orders         orders[]
+  product_review product_review[]
+  user_address   user_address[]
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -37,8 +39,9 @@ model products {
   discounted_price Int?
   total_reviews    Int?                  @default(0)
   average_rating   Decimal?              @default(0.0) @db.Decimal(2, 1)
-  carts_item       carts_item[]
+  carts_items      carts_items[]
   ordered_item     ordered_item[]
+  product_review   product_review[]
 }
 
 model admin {
@@ -60,15 +63,18 @@ model contact {
 }
 
 model user_address {
-  id          Int      @id @default(autoincrement())
-  user_id     String   @db.Uuid
-  street      String   @db.VarChar(255)
-  kecamatan   String   @db.VarChar(255)
-  city        String   @db.VarChar(100)
-  province    String   @db.VarChar(100)
-  postal_code String   @db.VarChar(5)
-  is_default  Boolean? @default(false)
-  users       users    @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  id             Int      @id @default(autoincrement())
+  user_id        String   @db.Uuid
+  street         String   @db.VarChar(255)
+  kecamatan      String   @db.VarChar(255)
+  city           String   @db.VarChar(100)
+  province       String   @db.VarChar(100)
+  postal_code    String   @db.VarChar(5)
+  is_default     Boolean? @default(false)
+  recipient_name String   @db.VarChar(50)
+  detail         String?  @db.VarChar(255)
+  orders         orders[]
+  users          users    @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -91,19 +97,22 @@ model orders {
   order_date   DateTime?         @default(now()) @db.Timestamptz(6)
   total_price  Int
   order_status order_status_enum
+  destination  Int
   ordered_item ordered_item[]
+  user_address user_address      @relation(fields: [destination], references: [id], onDelete: NoAction, onUpdate: NoAction)
   users        users             @relation(fields: [user_id], references: [id], onUpdate: NoAction)
+  payments     payments[]
 }
 
 model carts {
-  id         Int          @id @default(autoincrement())
-  user_id    String       @unique @db.Uuid
-  users      users        @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  carts_item carts_item[]
+  id          Int           @id @default(autoincrement())
+  user_id     String        @unique @db.Uuid
+  users       users         @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  carts_items carts_items[]
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
-model carts_item {
+model carts_items {
   id         Int      @id(map: "cart_item_pkey") @default(autoincrement())
   cart_id    Int
   product_id Int
@@ -114,6 +123,32 @@ model carts_item {
   @@unique([cart_id, product_id], map: "cart_item_carts_id_product_id_key")
 }
 
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model payments {
+  id             String              @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  order_id       Int
+  transaction_id String              @unique @default(dbgenerated("('COD'::text || (nextval('payment_cash_seq'::regclass))::text)")) @db.VarChar(255)
+  payment_method payment_method_enum
+  amount_paid    Int
+  payment_status payment_status_enum
+  created_at     DateTime?           @default(now()) @db.Timestamptz(6)
+  amount_to_pay  Int
+  orders         orders              @relation(fields: [order_id], references: [id], onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model product_review {
+  id         Int      @id @default(autoincrement())
+  product_id Int
+  user_id    String   @db.Uuid
+  review     String?  @db.VarChar(4000)
+  rating     Int
+  products   products @relation(fields: [product_id], references: [id], onUpdate: NoAction)
+  users      users    @relation(fields: [user_id], references: [id], onUpdate: NoAction)
+
+  @@unique([user_id, product_id])
+}
+
 enum gender_enum {
   Laki
   Perempuan
@@ -121,10 +156,13 @@ enum gender_enum {
 }
 
 enum order_status_enum {
-  Belum_Bayar @map("Belum Bayar")
+  Belum_Bayar         @map("Belum Bayar")
   Dikemas
   Dikirim
   Selesai
+  Menunggu_Konfirmasi @map("Menunggu Konfirmasi")
+  Ditolak
+  Diterima
 }
 
 enum payment_method_enum {

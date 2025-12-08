@@ -19,6 +19,7 @@ const userAuth = async (req, res, next) => {
 			const userTokenInDb = await prisma.users.findUnique({
 				where: { id: decoded.id },
 				select: { temp_token: true },
+				relationLoadStrategy: "join",
 			});
 
 			if (!userTokenInDb) {

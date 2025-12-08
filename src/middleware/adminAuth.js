@@ -19,6 +19,7 @@ const adminAuth = async (req, res, next) => {
 			const adminTokenInDb = await prisma.admin.findUnique({
 				where: { id: decoded.id },
 				select: { temp_token: true },
+				relationLoadStrategy: "join",
 			});
 
 			if (!adminTokenInDb) {

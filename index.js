@@ -68,6 +68,10 @@ app.use((err, req, res, next) => {
 	next();
 });
 
+BigInt.prototype.toJSON = function () {
+	return this.toString();
+};
+
 // ---------------------------------------- Routes and port listen ----------------------------------------
 
 const ProductRouter = require("./src/routes/productRoutes");

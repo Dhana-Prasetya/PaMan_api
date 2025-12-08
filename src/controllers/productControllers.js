@@ -14,6 +14,7 @@ const inputConstraint = require("../config/inputConstraint.js");
 const capitalizeFirstLetter = require("../helper/capitalizeFirstLetter.js");
 const pagination = require("../helper/pagination.js");
 const serialIdCheck = require("../helper/serial-id-check.js");
+const removeNullProperties = require("../helper/removeNullProperties.js");
 
 const prisma = new PrismaClient();
 
@@ -103,6 +104,7 @@ const productController = {
 				where: {
 					id: id,
 				},
+				relationLoadStrategy: "join",
 			});
 
 			if (results === null) {
@@ -182,6 +184,7 @@ const productController = {
 						where: {
 							name: name,
 						},
+						relationLoadStrategy: "join",
 					});
 
 					if (productDuplicationCheck) {
@@ -296,17 +299,24 @@ const productController = {
 			// ------------------------ Input Validations ----------------------- //
 
 			let {
-				name,
-				stock,
-				price,
-				description,
-				category,
+				name = null,
+				stock = null,
+				price = null,
+				description = null,
+				category = null,
 				discounted_price = null,
 			} = req.body;
 
-			if (!name || !stock || !price || !description || !category) {
+			if (
+				!name &&
+				!stock &&
+				!price &&
+				!description &&
+				!category &&
+				!discounted_price
+			) {
 				return res.status(400).json({
-					message: "All fields are required except ''discounted_price'' !",
+					message: "Atleast one field to update is required !",
 				});
 			}
 
@@ -328,46 +338,66 @@ const productController = {
 				return res.status(400).json({ productInputErrors });
 			}
 
+			if (stock) {
+				// Convert to Number if provided
+				stock = Number(stock);
+			}
+			if (price) {
+				price = Number(price);
+			}
+			if (discounted_price) {
+				discounted_price = Number(discounted_price);
+			}
+
 			// ------------------------ Input Validations ----------------------- //
 
 			const updateProductTransaction = await prisma.$transaction(
 				async (tx) => {
-					const productDuplicationCheck = await tx.products.findUnique({
-						// Check for duplicate name excluding current product
-						where: {
-							name: name,
-							NOT: { id: id }, // Exclude current product ID from duplication check
-						},
-						select: { id: true },
-					});
+					if (name) {
+						// Check for name duplication only if name is provided
+						const productDuplicationCheck = await tx.products.findUnique({
+							// Check for duplicate name excluding current product
+							where: {
+								name: name,
+								NOT: { id: id }, // Exclude current product ID from duplication check
+							},
+							select: { id: true },
+							relationLoadStrategy: "join",
+						});
 
-					if (productDuplicationCheck) {
-						// Check for duplicate product name
-						throw new Error("SAME_NAME_PRODUCT_FOUND");
+						if (productDuplicationCheck) {
+							// Check for duplicate product name
+							throw new Error("SAME_NAME_PRODUCT_FOUND");
+						}
 					}
 
-					let results;
+					let dataToUpdate = {
+						name,
+						stock,
+						price,
+						description,
+						discounted_price,
+					};
 
-					if (discounted_price) {
-						// If discounted_price provided, convert to Number (if null become number it become '0')
-						discounted_price = Number(discounted_price);
-					}
+					// If these data provided, add to data object
+					if (name != null) dataToUpdate.name = name;
+					if (stock != null) dataToUpdate.stock = stock;
+					if (price != null) dataToUpdate.price = price;
+					if (description != null) dataToUpdate.description = description;
+					if (discounted_price != null)
+						dataToUpdate.discounted_price = discounted_price;
 
-					results = await tx.products.update({
+					dataToUpdate = removeNullProperties(dataToUpdate); // Remove null properties from data object
+
+					const updatedData = await tx.products.update({
 						// Update product in database with discounted_price
 						where: {
 							id: id,
 						},
-						data: {
-							name,
-							stock: Number(stock),
-							price: Number(price),
-							description,
-							discounted_price,
-						},
+						data: dataToUpdate,
 					});
 
-					return results;
+					return updatedData;
 				},
 				{
 					transactionOptions: {
@@ -446,6 +476,7 @@ const productController = {
 							id: id,
 						},
 						select: { photo_url: true },
+						relationLoadStrategy: "join",
 					});
 
 					if (selectedProduct === null) {
@@ -545,6 +576,7 @@ const productController = {
 								category: true,
 								photo_url: true,
 							},
+							relationLoadStrategy: "join",
 						});
 
 					const results = await tx.products.delete({
@@ -739,7 +771,7 @@ const productController = {
 				return commonHelper.response(
 					res,
 					null,
-					404,
+					200,
 					`No products found in category '${sort}' !`
 				);
 			}

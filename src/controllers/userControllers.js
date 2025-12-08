@@ -7,6 +7,9 @@ const { USER_CONSTRAINT } = require("../config/inputConstraint.js");
 const userProfileInputCheck = require("../helper/userProfileInputCheck.js");
 const { getCloudinaryPublicId } = require("../helper/getCloudinaryPublicId.js");
 const zodValidator = require("zod");
+const removeNullProperties = require("../helper/removeNullProperties.js");
+const capitalizeFirstLetter = require("../helper/capitalizeFirstLetter.js");
+const { is } = require("zod/locales");
 
 const saltRounds = 10; // Standard salt rounds for bcrypt
 const prisma = new PrismaClient();
@@ -17,19 +20,19 @@ const userController = {
 			if (!req.body) {
 				return res.status(400).json({ message: "Request body is missing !" });
 			}
-			let { username, phone_number, email, password, gender } = req.body;
+			let { fullname, phone_number, email, password, gender } = req.body;
 
 			// ------------------------ Input & Validations ----------------------- //
 
 			let errors = {}; // Object to hold every client errors
 
-			if (!username || !password || !email || !phone_number || !gender) {
+			if (!fullname || !password || !email || !phone_number || !gender) {
 				// Check for empty fields
 				return res.status(400).json({ message: "All fields are required !" });
 			}
 
 			errors = await userProfileInputCheck({
-				username,
+				fullname,
 				email,
 				password,
 				phone_number,
@@ -46,8 +49,38 @@ const userController = {
 			const salt = await bcrypt.genSalt(saltRounds);
 			const hashedPassword = await bcrypt.hash(password, salt);
 
+			let username = fullname.trim().split(/\s+/)[0]; // Get first word from fullname as username
+			username = username.toLowerCase(); // Normalize username to lowercase
+			username = capitalizeFirstLetter(username); // Capitalize first letter of username
+
+			let isUnique = false; // Must be outside the loop
+			let finalUsername = username; // To avoid mutating the original input
+
+			do {
+				// Loop until a unique username is found
+				const num = Math.floor(Math.random() * 100);
+				const formatted = String(num).padStart(2, "0");
+
+				// Combine the base username and the random number
+				const currentAttempt = (username + formatted).slice(
+					0,
+					USER_CONSTRAINT.MAX_USERNAME_LENGTH
+				);
+
+				const usernameExists = await prisma.users.findUnique({
+					where: { username: currentAttempt },
+					relationLoadStrategy: "join",
+				});
+
+				if (!usernameExists) {
+					finalUsername = currentAttempt;
+					isUnique = true;
+				}
+			} while (!isUnique);
+
 			let data = {
-				username,
+				fullname,
+				username: finalUsername,
 				password: hashedPassword,
 				phone_number,
 				gender,
@@ -123,6 +156,7 @@ const userController = {
 					avatar_url: true,
 					username: true,
 				},
+				relationLoadStrategy: "join",
 			});
 
 			if (!dataInDb) {
@@ -180,12 +214,13 @@ const userController = {
 				},
 				select: {
 					username: true,
-					name: true,
+					fullname: true,
 					email: true,
 					phone_number: true,
 					birthday: true,
 					gender: true,
 				},
+				relationLoadStrategy: "join",
 			});
 
 			if (!myProfile) {
@@ -215,37 +250,29 @@ const userController = {
 				return res.status(400).json({ message: "Request body is missing !" });
 			}
 			let {
-				username,
-				name = null,
-				phone_number,
-				email,
+				username = null,
+				fullname = null,
+				phone_number = null,
+				email = null,
 				birthday = null,
-				gender,
+				gender = null,
 			} = req.body;
-
-			const myProfile = await prisma.users.findUnique({
-				where: {
-					id: req.user.id, // Get user id from userAuth middleware (token)
-				},
-				select: { id: true },
-			});
-
-			if (!myProfile) {
-				return commonHelper.response(
-					res,
-					null,
-					403,
-					"User not authenticated !"
-				);
-			}
 
 			// ------------------------ Input Validations ----------------------- //
 
 			let errors = {}; // Object to hold every client errors
 
-			if (!username || !email || !phone_number || !gender) {
+			if (
+				!username &&
+				!email &&
+				!phone_number &&
+				!gender &&
+				!birthday &&
+				!fullname
+			) {
 				return res.status(400).json({
-					message: "All fields are required except 'birthday' and 'name' !",
+					message:
+						"Atleast one fields must be provided to update profile data !",
 				});
 			}
 
@@ -255,7 +282,7 @@ const userController = {
 				phone_number,
 				gender,
 				birthday,
-				name,
+				fullname,
 			});
 
 			if (Object.keys(errors).length > 0) {
@@ -266,22 +293,31 @@ const userController = {
 			// ------------------------ Input Validations ----------------------- //
 
 			if (birthday) {
-				// If birthday valid, convert to Date object
+				// If birthday provided, convert to Date object
 				birthday = new Date(birthday);
 			}
 
-			const data = {
+			let data = {
 				username,
-				name,
+				fullname,
 				phone_number,
 				gender,
-				email: email.toLowerCase(), // Normalize email to lowercase
+				email,
 				birthday,
 			};
 
+			if (username != null) data.username = username; // If these data provided, add to data object
+			if (fullname != null) data.fullname = fullname;
+			if (phone_number != null) data.phone_number = phone_number;
+			if (gender != null) data.gender = gender;
+			if (email != null) data.email = email.toLowerCase();
+			if (birthday != null) data.birthday = birthday;
+
+			data = removeNullProperties(data); // Remove null properties from data object
+
 			const editProfileDb = await prisma.$transaction(
 				[
-					prisma.users.updateOrThrow({
+					prisma.users.update({
 						where: {
 							id: req.user.id, // Get user id from userAuth middleware (token)
 						},

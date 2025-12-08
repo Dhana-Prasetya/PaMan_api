@@ -2,6 +2,7 @@ const { Prisma, PrismaClient } = require("@prisma/client");
 const userAddressInputCheck = require("../helper/userAddressInputCheck");
 const commonHelper = require("../helper/common");
 const serialIdCheck = require("../helper/serial-id-check");
+const removeNullProperties = require("../helper/removeNullProperties");
 const prisma = new PrismaClient();
 
 const userAdressControllers = {
@@ -13,18 +14,35 @@ const userAdressControllers = {
 				return res.status(400).json({ message: "Request body is missing !" });
 			}
 
-			let { street, kecamatan, city, province, postal_code } = req.body;
-
-			if (!street || !kecamatan || !city || !province || !postal_code) {
-				return res.status(400).json({ message: "All fields are required !" });
-			}
-
-			const errors = userAddressInputCheck({
+			let {
+				recipient_name,
 				street,
 				kecamatan,
 				city,
 				province,
 				postal_code,
+				detail = null,
+			} = req.body;
+
+			if (
+				!recipient_name ||
+				!street ||
+				!kecamatan ||
+				!city ||
+				!province ||
+				!postal_code
+			) {
+				return res.status(400).json({ message: "All fields are required !" });
+			}
+
+			let errors = userAddressInputCheck({
+				street,
+				kecamatan,
+				city,
+				province,
+				postal_code,
+				detail,
+				recipient_name,
 			});
 
 			if (Object.keys(errors).length > 0) {
@@ -56,11 +74,13 @@ const userAdressControllers = {
 					const insertAddress = await tx.user_address.create({
 						data: {
 							user_id: req.user.id,
+							recipient_name,
 							street,
 							kecamatan,
 							city,
 							province,
 							postal_code,
+							detail,
 							is_default: defaultAddress,
 						},
 					});
@@ -185,7 +205,15 @@ const userAdressControllers = {
 				return res.status(400).json({ message: "Request body is missing !" });
 			}
 
-			let { street, kecamatan, city, province, postal_code } = req.body;
+			let {
+				recipient_name = null,
+				street = null,
+				kecamatan = null,
+				city = null,
+				province = null,
+				postal_code = null,
+				detail = null,
+			} = req.body;
 			let { id } = req.params;
 
 			// ------------------------ Input Validations ----------------------- //
@@ -205,16 +233,27 @@ const userAdressControllers = {
 				return res.status(400).json({ idCheck });
 			}
 
-			if (!street || !kecamatan || !city || !province || !postal_code) {
-				return res.status(400).json({ message: "All fields are required !" });
+			if (
+				!street &&
+				!kecamatan &&
+				!city &&
+				!province &&
+				!postal_code &&
+				!recipient_name
+			) {
+				return res
+					.status(400)
+					.json({ message: "One of the fields are required !" });
 			}
 
-			const errors = userAddressInputCheck({
+			let errors = userAddressInputCheck({
 				street,
 				kecamatan,
 				city,
 				province,
 				postal_code,
+				detail,
+				recipient_name,
 			});
 
 			if (Object.keys(errors).length > 0) {
@@ -223,15 +262,30 @@ const userAdressControllers = {
 
 			// ------------------------ Input Validations ----------------------- //
 
+			let updatedAddress = {
+				recipient_name,
+				street,
+				kecamatan,
+				city,
+				province,
+				postal_code,
+				detail,
+			};
+
+			// If these data provided, add to data object
+			if (street != null) updatedAddress.street = street;
+			if (kecamatan != null) updatedAddress.kecamatan = kecamatan;
+			if (city != null) updatedAddress.city = city;
+			if (province != null) updatedAddress.province = province;
+			if (postal_code != null) updatedAddress.postal_code = postal_code;
+			if (recipient_name != null)
+				updatedAddress.recipient_name = recipient_name;
+			if (detail != null) updatedAddress.detail = detail;
+			updatedAddress = removeNullProperties(updatedAddress); // Remove null properties from data object
+
 			const updateAddress = await prisma.user_address.update({
 				where: { id: id },
-				data: {
-					street,
-					kecamatan,
-					city,
-					province,
-					postal_code,
-				},
+				data: updatedAddress,
 			});
 
 			return res.status(201).json({

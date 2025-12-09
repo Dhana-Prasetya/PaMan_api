@@ -49,6 +49,12 @@ router.post(
 	userRatingProductsController.RateProduct
 );
 
+router.patch(
+	"/helpful/:id/:rate",
+	userAuth,
+	userRatingProductsController.MarkHelpfulOrNot
+);
+
 // Cart user routes
 router.get("/cart", userAuth, userCartControllers.GetUserCart);
 router.post("/cart/:id", userAuth, userCartControllers.AddProductToCart);
@@ -61,6 +67,11 @@ router.delete(
 	"/cart",
 	userAuth,
 	userCartControllers.RemoveMultipleProductFromCart
+);
+router.post(
+	"/cart-checkout",
+	userAuth,
+	userCartControllers.CheckoutProductFromCart
 );
 
 module.exports = router;

@@ -110,6 +110,107 @@ const userRatingProductsController = {
 			return commonHelper.response(res, null, 500, "Internal server error !");
 		}
 	},
+
+	MarkHelpfulOrNot: async (req, res) => {
+		try {
+			if (!req.params) {
+				return commonHelper.response(
+					res,
+					null,
+					400,
+					"Request parameters are missing!"
+				);
+			}
+
+			let { id, rate } = req.params;
+
+			id = Number(id);
+			// ----------------------- Input Validations -----------------------
+
+			const idCheck = serialIdCheck(id);
+			if (idCheck !== true) {
+				// If there is any error, return the errors
+				return commonHelper.response(res, null, 400, idCheck);
+			}
+
+			if (isNaN(rate) || (rate !== "1" && rate !== "-1")) {
+				return commonHelper.response(
+					res,
+					null,
+					400,
+					"Rate must be either '1' (helpful) or '-1' (not helpful)!"
+				);
+			}
+
+			rate = Number(rate);
+
+			const reviewExists = await prisma.product_review.findUnique({
+				// Check if review exists
+				where: {
+					id: id,
+				},
+				relationLoadStrategy: "join",
+			});
+
+			if (!reviewExists) {
+				return commonHelper.response(
+					res,
+					null,
+					404,
+					"Review with the given ID does not exist !"
+				);
+			}
+
+			const rateOwnReview = await prisma.product_review.findUnique({
+				// Check if user is rating their own review
+				where: {
+					id: id,
+					user_id: req.user.id,
+				},
+				relationLoadStrategy: "join",
+			});
+
+			if (rateOwnReview) {
+				return commonHelper.response(
+					res,
+					null,
+					403,
+					"User can not rate their own review."
+				);
+			}
+
+			// ----------------------- Input Validations -----------------------
+
+			const voteRecord = await prisma.helpful_review.upsert({
+				where: {
+					// Composite unique ID defined
+					review_id_user_id: {
+						review_id: id,
+						user_id: req.user.id,
+					},
+				},
+				// If the vote doesn't exist, create it
+				create: {
+					review_id: id,
+					user_id: req.user.id,
+					helpful: rate, // Stores the vote (1 or -1)
+				},
+				// If the vote exists, update it (e.g., user changed from unhelpful to helpful)
+				update: {
+					helpful: rate,
+				},
+			});
+			return commonHelper.response(
+				res,
+				voteRecord,
+				200,
+				"Marked review as helpful OR not helpful successfully!"
+			);
+		} catch (error) {
+			console.error(`\n${error}\n`);
+			return commonHelper.response(res, null, 500, "Internal server error !");
+		}
+	},
 };
 
 module.exports = userRatingProductsController;

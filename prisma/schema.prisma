@@ -22,6 +22,7 @@ model users {
   temp_token     String?          @db.VarChar(300)
   fullname       String           @db.VarChar(255)
   carts          carts?
+  helpful_review helpful_review[]
   orders         orders[]
   product_review product_review[]
   user_address   user_address[]
@@ -39,6 +40,7 @@ model products {
   discounted_price Int?
   total_reviews    Int?                  @default(0)
   average_rating   Decimal?              @default(0.0) @db.Decimal(2, 1)
+  sold             Int                   @default(0)
   carts_items      carts_items[]
   ordered_item     ordered_item[]
   product_review   product_review[]
@@ -138,15 +140,29 @@ model payments {
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model product_review {
-  id         Int      @id @default(autoincrement())
-  product_id Int
-  user_id    String   @db.Uuid
-  review     String?  @db.VarChar(4000)
-  rating     Int
-  products   products @relation(fields: [product_id], references: [id], onUpdate: NoAction)
-  users      users    @relation(fields: [user_id], references: [id], onUpdate: NoAction)
+  id             Int              @id @default(autoincrement())
+  product_id     Int
+  user_id        String           @db.Uuid
+  review         String?          @db.VarChar(4000)
+  rating         Int
+  helpful        Int              @default(0)
+  helpful_review helpful_review[]
+  products       products         @relation(fields: [product_id], references: [id], onUpdate: NoAction)
+  users          users            @relation(fields: [user_id], references: [id], onUpdate: NoAction)
 
   @@unique([user_id, product_id])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model helpful_review {
+  id             Int            @id @default(autoincrement())
+  review_id      Int
+  user_id        String         @db.Uuid
+  helpful        Int?
+  product_review product_review @relation(fields: [review_id], references: [id], onUpdate: NoAction)
+  users          users          @relation(fields: [user_id], references: [id], onUpdate: NoAction)
+
+  @@unique([review_id, user_id])
 }
 
 enum gender_enum {

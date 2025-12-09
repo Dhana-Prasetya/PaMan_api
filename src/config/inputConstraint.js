@@ -81,6 +81,11 @@ const USER_ADDRESS_CONSTRAINT = {
 	MIN_RECIPIENT_NAME_VARCHAR: 3,
 };
 
+const PAYMENT_CONSTRAINT = {
+	PACKAGING_FEE: 2500, // Example fixed packaging fee
+	SHIPPING_FEE: 8000, // Example fixed shipping fee
+};
+
 module.exports = {
 	ID_CONSTRAINT,
 	STRING_CONSTRAINT,
@@ -93,4 +98,5 @@ module.exports = {
 	DATE_CONSTRAINT,
 	USER_ADDRESS_CONSTRAINT,
 	ORDER_CONSTRAINT,
+	PAYMENT_CONSTRAINT,
 };

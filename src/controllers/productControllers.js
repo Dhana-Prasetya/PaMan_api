@@ -79,6 +79,10 @@ const productController = {
 		// Get product by param id
 		try {
 			let id = req.params.id;
+			let {
+				page = PAGINATION_CONSTRAINT.DEFAULT_PAGE_POSITION,
+				limit = PAGINATION_CONSTRAINT.DEFAULT_ITEMS_PER_PAGE,
+			} = req.query;
 
 			if (!id) {
 				return commonHelper.response(
@@ -89,6 +93,8 @@ const productController = {
 				);
 			}
 
+			// ------------------------ Input Validations ----------------------- //
+
 			id = Number(id);
 
 			const idCheck = serialIdCheck(id);
@@ -98,13 +104,55 @@ const productController = {
 				return res.status(400).json({ idCheck });
 			}
 
+			page = Number(page);
+			limit = Number(limit);
+
+			const paginationErrors = paginationCheck(page, limit);
+			if (Object.keys(paginationErrors).length > 0) {
+				return commonHelper.response(res, null, 400, paginationErrors);
+			}
+
 			// ------------------------ Input Validations ----------------------- //
+			// ------------------------ Pagination logic ------------------------ //
+			const skip = (page - 1) * limit; // Calculate the number of records to skip based of page and limit
+			const total = await prisma.product_review.count({
+				where: { product_id: id },
+			});
+			const totalPages = Math.ceil(total / limit);
+
+			// ------------------------ Pagination logic ------------------------ //
 
 			const results = await prisma.products.findUnique({
-				where: {
-					id: id,
+				where: { id: id },
+				select: {
+					name: true,
+					price: true,
+					discounted_price: true,
+					stock: true,
+					photo_url: true,
+					description: true,
+					total_reviews: true,
+					average_rating: true,
+					product_review: {
+						// --- PAGINATION INSIDE RELATION ---
+						skip: skip,
+						take: limit,
+						orderBy: { id: "desc" },
+						// ----------------------------------
+						select: {
+							id: true,
+							review: true,
+							rating: true,
+							helpful: true,
+							users: {
+								select: {
+									username: true,
+									avatar_url: true,
+								},
+							},
+						},
+					},
 				},
-				relationLoadStrategy: "join",
 			});
 
 			if (results === null) {
@@ -113,9 +161,17 @@ const productController = {
 
 			return commonHelper.response(
 				res,
-				results,
+				{
+					product: results,
+					reviews_pagination: {
+						totalReviews: total,
+						totalPages: totalPages,
+						currentPage: page,
+						limit: limit,
+					},
+				},
 				200,
-				"Get product by id Success"
+				"Product reviews fetched successfully!"
 			);
 		} catch (error) {
 			console.error(`\n${error}\n`);

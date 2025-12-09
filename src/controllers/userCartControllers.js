@@ -1,7 +1,10 @@
 const { Prisma, PrismaClient } = require("@prisma/client");
 const commonHelper = require("../helper/common");
 const serialIdCheck = require("../helper/serial-id-check");
-const { PRODUCT_CONSTRAINT } = require("../config/inputConstraint");
+const {
+	PRODUCT_CONSTRAINT,
+	PAYMENT_CONSTRAINT,
+} = require("../config/inputConstraint");
 const prisma = new PrismaClient();
 
 const userCartControllers = {
@@ -452,7 +455,10 @@ const userCartControllers = {
 						// Deduct Stock
 						await tx.products.update({
 							where: { id: product.id },
-							data: { stock: { decrement: orderQuantity } },
+							data: {
+								stock: { decrement: orderQuantity },
+								sold: { increment: orderQuantity },
+							},
 						});
 					}
 
@@ -473,11 +479,16 @@ const userCartControllers = {
 						})),
 					});
 
+					const packagingFee = PAYMENT_CONSTRAINT.PACKAGING_FEE; // Example fixed packaging fee
+					const shippingFee = PAYMENT_CONSTRAINT.SHIPPING_FEE; // Example fixed shipping fee
+
+					const finalPaymentAmount = totalAmount + packagingFee + shippingFee; // Add shipping or other fees
+
 					await tx.payments.create({
 						data: {
 							order_id: newOrder.id,
 							payment_method,
-							amount_to_pay: totalAmount,
+							amount_to_pay: finalPaymentAmount,
 							payment_status: "Proses",
 							amount_paid: 0,
 						},

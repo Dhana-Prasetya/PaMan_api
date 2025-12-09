@@ -5,6 +5,7 @@ const serialIdCheck = require("../helper/serial-id-check");
 const {
 	PAGINATION_CONSTRAINT,
 	ORDER_CONSTRAINT,
+	PAYMENT_CONSTRAINT,
 } = require("../config/inputConstraint");
 const paginationCheck = require("../helper/paginationCheck");
 const capitalizeFirstLetter = require("../helper/capitalizeFirstLetter");
@@ -143,20 +144,28 @@ const userOrderControllers = {
 						},
 					});
 
+					const packagingFee = PAYMENT_CONSTRAINT.PACKAGING_FEE; // Example fixed packaging fee
+					const shippingFee = PAYMENT_CONSTRAINT.SHIPPING_FEE; // Example fixed shipping fee
+
+					const finalPaymentAmount = amountToPay + packagingFee + shippingFee; // Add shipping or other fees
+
 					const makePaymentRecord = await tx.payments.create({
 						// Create payment record FOR COD ONLY
 						data: {
 							order_id: makeOrder.id,
 							payment_method: payment_method,
 							amount_paid: 0, // Since COD, amount paid is zero at order time
-							amount_to_pay: amountToPay,
+							amount_to_pay: finalPaymentAmount,
 							payment_status: "Proses",
 						},
 					}); // Create payment record
 
 					const updateProductStock = await tx.products.update({
 						where: { id: product_id },
-						data: { stock: { decrement: quantity } },
+						data: {
+							stock: { decrement: quantity },
+							sold: { increment: quantity },
+						},
 					});
 
 					return makePaymentRecord;

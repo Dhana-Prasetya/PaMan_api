@@ -1,4 +1,4 @@
-const userInputCheck = require("../helper/userInputCheck.js");
+const userInputCheck = require("../helper/userProfileInputCheck.js");
 const { PrismaClient } = require("@prisma/client");
 const commonHelper = require("../helper/common.js");
 

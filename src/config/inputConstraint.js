@@ -14,12 +14,20 @@ const PRODUCT_CONSTRAINT = {
 	IN_STOCK: "In-stock",
 	OUT_OF_STOCK: "Out-of-stock",
 	MAX_TEXT_VARCHAR: 4000,
-	ORDER_STATUS_ENUM: ["Belum Bayar", "Dikemas", "Dikirim", "Selesai"],
+	MAX_NAME_VARCHAR: 255,
+	MIN_NAME_VARCHAR: 3,
+	ALLOWED_NAME_REGEX: /^[a-zA-Z0-9\s\-_,.*:()#&|/=~]{3,255}$/, // Allow lower-capital case, num, space, and these symbols = (- . , _ - : = ' " () # & | / = ~)
+	ALLOWED_DESCRIPTION_REGEX: /^[a-zA-Z0-9\s\-_,.*:()#&|/=~]{0,4000}$/, // Allow lower-capital case, num, space, and these symbols = (- . , _ - : = ' " () # & | / = ~)
 };
 
 const IMAGE_CONSTRAINT = {
 	MAX_SIZE: 2 * 1024 * 1024, // 2MB
 	ALLOWED_FORMATS: ["image/jpg", "image/jpeg", "image/png", "image/webp"], // Allowed image MIME types
+};
+
+const ORDER_CONSTRAINT = {
+	STATUS_ENUM: ["Dikemas", "Dikirim", "Diterima", "Selesai"],
+	USER_STATUS_ENUM: ["Dikemas", "Dikirim", "Selesai"],
 };
 
 const USER_CONSTRAINT = {
@@ -29,7 +37,7 @@ const USER_CONSTRAINT = {
 	DEFAULT_USER_AVATAR_URL: process.env.CLOUDINARY_DEFAULT_USER_AVATAR_URL,
 	USER_ROLE: "user",
 	DEFAULT_IMAGE_FOLDER: "user_avatar",
-	MIN_USERNAME_LENGTH: 4, // Minimum username length
+	MIN_USERNAME_LENGTH: 3, // Minimum username length
 	MAX_USERNAME_LENGTH: 20, // Maximum username length
 	FILE_NAME_PREFIX: "user_id-",
 };
@@ -68,7 +76,14 @@ const USER_ADDRESS_CONSTRAINT = {
 	MIN_STREET_N_KECAMATAN: 3,
 	MIN_CITY_N_PROVINCE: 4,
 	POSTAL_CODE: 5, // Postal code length
-	ALLOWED_STRING_REGEX: /^[a-zA-Z0-9 .,]+$/, // Allow lowercase, capitalcase letters, dot, coma, numbers, and space only
+	ALLOWED_STRING_REGEX: /^[a-zA-Z0-9 .,-]+$/, // Allow lowercase, capitalcase letters, dot, coma, numbers, dash, and space only
+	MAX_RECIPIENT_NAME_VARCHAR: 50,
+	MIN_RECIPIENT_NAME_VARCHAR: 3,
+};
+
+const PAYMENT_CONSTRAINT = {
+	PACKAGING_FEE: 2500, // Example fixed packaging fee
+	SHIPPING_FEE: 8000, // Example fixed shipping fee
 };
 
 module.exports = {
@@ -82,4 +97,6 @@ module.exports = {
 	CONTACT_CONSTRAINT,
 	DATE_CONSTRAINT,
 	USER_ADDRESS_CONSTRAINT,
+	ORDER_CONSTRAINT,
+	PAYMENT_CONSTRAINT,
 };

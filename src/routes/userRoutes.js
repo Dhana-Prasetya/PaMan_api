@@ -5,6 +5,8 @@ const userAuth = require("../middleware/userAuth.js");
 const { upload } = require("../middleware/upload.js");
 const userOrderControllers = require("../controllers/userOrderControllers.js");
 const userAdressControllers = require("../controllers/userAdressControllers.js");
+const userCartControllers = require("../controllers/userCartControllers.js");
+const userRatingProductsController = require("../controllers/userRatingProductsController.js");
 
 // Main user routes
 router.post("/login", userController.Login);
@@ -36,6 +38,40 @@ router.delete(
 );
 
 // Order user routes
-// router.post("/order/:id", userAuth, userOrderControllers.OrderProductDirectly);
+router.post("/order", userAuth, userOrderControllers.OrderProductDirectly);
+router.get("/order", userAuth, userOrderControllers.GetPaginatedMyOrders);
+router.get("/order/:id", userAuth, userOrderControllers.GetMyDetailOrder);
+
+// Rating user routes
+router.post(
+	"/rate-product/:id",
+	userAuth,
+	userRatingProductsController.RateProduct
+);
+
+router.patch(
+	"/helpful/:id/:rate",
+	userAuth,
+	userRatingProductsController.MarkHelpfulOrNot
+);
+
+// Cart user routes
+router.get("/cart", userAuth, userCartControllers.GetUserCart);
+router.post("/cart/:id", userAuth, userCartControllers.AddProductToCart);
+router.patch(
+	"/cart/:id",
+	userAuth,
+	userCartControllers.DecreaseProductQuantityFromCart
+);
+router.delete(
+	"/cart",
+	userAuth,
+	userCartControllers.RemoveMultipleProductFromCart
+);
+router.post(
+	"/cart-checkout",
+	userAuth,
+	userCartControllers.CheckoutProductFromCart
+);
 
 module.exports = router;

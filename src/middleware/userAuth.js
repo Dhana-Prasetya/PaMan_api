@@ -18,7 +18,7 @@ const userAuth = async (req, res, next) => {
 			// Fetch the temp_token from DB and compare it to the provided token
 			const userTokenInDb = await prisma.users.findUnique({
 				where: { id: decoded.id },
-				select: { temp_token: true },
+				select: { temporary_token: true },
 				relationLoadStrategy: "join",
 			});
 
@@ -26,7 +26,7 @@ const userAuth = async (req, res, next) => {
 				return next(new createError(401, "Invalid token"));
 			}
 
-			if (token !== userTokenInDb.temp_token) {
+			if (token !== userTokenInDb.temporary_token) {
 				return next(
 					new createError(401, "Token has been revoked. Please login again.")
 				);

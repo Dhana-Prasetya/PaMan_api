@@ -9,23 +9,23 @@ datasource db {
 }
 
 model users {
-  id             String           @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  username       String           @unique @db.VarChar(20)
-  phone_number   String           @unique @db.VarChar(20)
-  email          String           @unique @db.VarChar(255)
-  password       String           @db.VarChar(255)
-  gender         gender_enum
-  role           String           @db.VarChar(10)
-  avatar_url     String?          @db.VarChar(255)
-  register_date  DateTime?        @default(now()) @db.Timestamptz(6)
-  birthday       DateTime?        @db.Date
-  temp_token     String?          @db.VarChar(300)
-  fullname       String           @db.VarChar(255)
-  carts          carts?
-  helpful_review helpful_review[]
-  orders         orders[]
-  product_review product_review[]
-  user_address   user_address[]
+  id              String           @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  username        String?          @unique @db.VarChar(20)
+  full_name       String           @db.VarChar(255)
+  phone_number    String           @unique @db.VarChar(20)
+  email           String           @unique @db.VarChar(255)
+  password        String           @db.VarChar(255)
+  gender          gender_enum
+  role            String           @db.VarChar(10)
+  birthday        DateTime?        @db.Date
+  avatar_url      String?          @db.VarChar(255)
+  register_date   DateTime?        @default(now()) @db.Timestamptz(6)
+  temporary_token String?          @db.VarChar(300)
+  carts           carts?
+  helpful_review  helpful_review[]
+  orders          orders[]
+  product_review  product_review[]
+  user_address    user_address[]
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -38,23 +38,23 @@ model products {
   description      String                @db.VarChar(4000)
   category         product_category_enum
   discounted_price Int?
+  sold             Int                   @default(0)
   total_reviews    Int?                  @default(0)
   average_rating   Decimal?              @default(0.0) @db.Decimal(2, 1)
-  sold             Int                   @default(0)
   carts_items      carts_items[]
   ordered_item     ordered_item[]
   product_review   product_review[]
 }
 
 model admin {
-  id            String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  username      String    @unique @db.VarChar(255)
-  email         String    @unique @db.VarChar(255)
-  password      String    @db.VarChar(255)
-  role          String    @db.VarChar(10)
-  avatar_url    String?   @db.VarChar(255)
-  register_date DateTime? @default(now()) @db.Timestamptz(6)
-  temp_token    String?   @db.VarChar(300)
+  id              String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  username        String    @unique @db.VarChar(255)
+  email           String    @unique @db.VarChar(255)
+  password        String    @db.VarChar(255)
+  role            String    @db.VarChar(10)
+  avatar_url      String?   @db.VarChar(255)
+  register_date   DateTime? @default(now()) @db.Timestamptz(6)
+  temporary_token String?   @db.VarChar(300)
 }
 
 model contact {
@@ -67,14 +67,14 @@ model contact {
 model user_address {
   id             Int      @id @default(autoincrement())
   user_id        String   @db.Uuid
+  recipient_name String   @db.VarChar(50)
   street         String   @db.VarChar(255)
   kecamatan      String   @db.VarChar(255)
   city           String   @db.VarChar(100)
   province       String   @db.VarChar(100)
-  postal_code    String   @db.VarChar(5)
-  is_default     Boolean? @default(false)
-  recipient_name String   @db.VarChar(50)
+  postal_code    String   @db.VarChar(20)
   detail         String?  @db.VarChar(255)
+  is_default     Boolean? @default(false)
   orders         orders[]
   users          users    @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 }
@@ -115,14 +115,14 @@ model carts {
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model carts_items {
-  id         Int      @id(map: "cart_item_pkey") @default(autoincrement())
+  id         Int      @id @default(autoincrement())
   cart_id    Int
   product_id Int
   quantity   Int
   carts      carts    @relation(fields: [cart_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "cart_item_carts_id_fkey")
   products   products @relation(fields: [product_id], references: [id], onUpdate: NoAction, map: "cart_item_product_id_fkey")
 
-  @@unique([cart_id, product_id], map: "cart_item_carts_id_product_id_key")
+  @@unique([cart_id, product_id])
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -132,9 +132,9 @@ model payments {
   transaction_id String              @unique @default(dbgenerated("('COD'::text || (nextval('payment_cash_seq'::regclass))::text)")) @db.VarChar(255)
   payment_method payment_method_enum
   amount_paid    Int
+  amount_to_pay  Int
   payment_status payment_status_enum
   created_at     DateTime?           @default(now()) @db.Timestamptz(6)
-  amount_to_pay  Int
   orders         orders              @relation(fields: [order_id], references: [id], onUpdate: NoAction)
 }
 
@@ -172,12 +172,10 @@ enum gender_enum {
 }
 
 enum order_status_enum {
-  Belum_Bayar         @map("Belum Bayar")
+  Belum_Bayar @map("Belum Bayar")
   Dikemas
   Dikirim
   Selesai
-  Menunggu_Konfirmasi @map("Menunggu Konfirmasi")
-  Ditolak
   Diterima
 }
 

@@ -195,7 +195,7 @@ const userController = {
 					id: dataInDb.id,
 				},
 				data: {
-					temp_token: dataInDb.token,
+					temporary_token: dataInDb.token,
 				},
 			});
 
@@ -620,7 +620,7 @@ const userController = {
 					id: req.user.id,
 				},
 				data: {
-					temp_token: null,
+					temporary_token: null,
 				},
 			});
 

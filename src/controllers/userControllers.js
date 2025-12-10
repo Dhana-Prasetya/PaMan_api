@@ -9,7 +9,6 @@ const { getCloudinaryPublicId } = require("../helper/getCloudinaryPublicId.js");
 const zodValidator = require("zod");
 const removeNullProperties = require("../helper/removeNullProperties.js");
 const capitalizeFirstLetter = require("../helper/capitalizeFirstLetter.js");
-const { is } = require("zod/locales");
 
 const saltRounds = 10; // Standard salt rounds for bcrypt
 const prisma = new PrismaClient();
@@ -419,7 +418,12 @@ const userController = {
 				data: { avatar_url: photo_url },
 			});
 
-			return commonHelper.response(res, result, 201, "Edit avatar success !");
+			return commonHelper.response(
+				res,
+				result.avatar_url,
+				201,
+				"Edit avatar success !"
+			);
 		} catch (error) {
 			console.error(`\n${error}\n`);
 

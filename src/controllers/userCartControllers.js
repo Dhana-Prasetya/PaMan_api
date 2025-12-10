@@ -1,10 +1,8 @@
 const { Prisma, PrismaClient } = require("@prisma/client");
 const commonHelper = require("../helper/common");
 const serialIdCheck = require("../helper/serial-id-check");
-const {
-	PRODUCT_CONSTRAINT,
-	PAYMENT_CONSTRAINT,
-} = require("../config/inputConstraint");
+const { PAYMENT_CONSTRAINT } = require("../config/inputConstraint");
+const orderQuantityCheck = require("../helper/orderQuantityCheck");
 const prisma = new PrismaClient();
 
 const userCartControllers = {
@@ -69,18 +67,11 @@ const userCartControllers = {
 				return res.status(400).json({ idCheck });
 			}
 
-			if (
-				!quantity ||
-				quantity < 1 ||
-				quantity > PRODUCT_CONSTRAINT.MAX_STOCK
-			) {
-				// Quantity must be greater than zero
-				return commonHelper.response(
-					res,
-					null,
-					400,
-					"Quantity field required and must be integer greater than zero"
-				);
+			const quantityCheck = orderQuantityCheck(quantity);
+
+			if (quantityCheck !== true) {
+				// If there is any error, return the errors
+				return res.status(400).json({ message: quantityCheck });
 			}
 
 			// ------------------------ Input Validations ----------------------- //
@@ -207,16 +198,11 @@ const userCartControllers = {
 				);
 			}
 
-			const isInt = Number.isInteger(quantity);
+			const quantityCheck = orderQuantityCheck(quantity);
 
-			if (quantity > PRODUCT_CONSTRAINT.MAX_STOCK || quantity < 1 || !isInt) {
-				// Quantity must be greater than zero
-				return commonHelper.response(
-					res,
-					null,
-					400,
-					"Quantity field need to be an positive integer !"
-				);
+			if (quantityCheck !== true) {
+				// If there is any error, return the errors
+				return commonHelper.response(res, null, 400, quantityCheck);
 			}
 
 			// ------------------------ Input Validations ----------------------- //

@@ -9,7 +9,6 @@ const { getCloudinaryPublicId } = require("../helper/getCloudinaryPublicId.js");
 const productIdCheck = require("../helper/serial-id-check.js");
 const productInputCheck = require("../helper/productInputCheck.js");
 const paginationCheck = require("../helper/paginationCheck.js");
-const inputConstraint = require("../config/inputConstraint.js");
 const capitalizeFirstLetter = require("../helper/capitalizeFirstLetter.js");
 const pagination = require("../helper/pagination.js");
 const serialIdCheck = require("../helper/serial-id-check.js");

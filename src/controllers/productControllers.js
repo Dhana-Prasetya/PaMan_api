@@ -3,7 +3,6 @@ const { cloudinary } = require("../middleware/cloudinary.js");
 const { PrismaClient, Prisma } = require("@prisma/client");
 const {
 	PAGINATION_CONSTRAINT,
-	ID_CONSTRAINT,
 	PRODUCT_CONSTRAINT,
 } = require("../config/inputConstraint.js");
 const { getCloudinaryPublicId } = require("../helper/getCloudinaryPublicId.js");
@@ -42,7 +41,11 @@ const productController = {
 
 			// ------------------------ Input Validations ----------------------- //
 
-			const { skip, total, totalPages } = await pagination({ page, limit });
+			const { skip, total, totalPages } = await pagination({
+				page,
+				limit,
+				table: "products",
+			});
 
 			const results = await prisma.products.findMany({
 				skip,
@@ -114,11 +117,12 @@ const productController = {
 
 			// ------------------------ Input Validations ----------------------- //
 			// ------------------------ Pagination logic ------------------------ //
-			const skip = (page - 1) * limit; // Calculate the number of records to skip based of page and limit
-			const total = await prisma.product_review.count({
-				where: { product_id: id },
+
+			const { skip, total, totalPages } = await pagination({
+				page,
+				limit,
+				table: "product_review",
 			});
-			const totalPages = Math.ceil(total / limit);
 
 			// ------------------------ Pagination logic ------------------------ //
 
@@ -186,6 +190,8 @@ const productController = {
 
 	InsertProduct: async (req, res) => {
 		// Adding product
+		let productPhotoURL = null;
+
 		try {
 			if (!req.body) {
 				return res.status(400).json({ message: "Request body is missing !" });
@@ -218,7 +224,7 @@ const productController = {
 
 			category = capitalizeFirstLetter(category); // Capitalize input first letter to match enum values
 
-			productInputErrors = await productInputCheck({
+			productInputErrors = productInputCheck({
 				name,
 				stock,
 				price,
@@ -253,47 +259,44 @@ const productController = {
 						discounted_price = Number(discounted_price);
 					}
 
-					// Raw query to get next value of products_id_seq
-					const nextProductIdQuery = await tx.$queryRaw`
-						SELECT last_value FROM products_id_seq;
-					`;
-
-					let customPublicId = nextProductIdQuery[0]; // Get the first object from the query result
-					customPublicId = customPublicId.last_value; // Extract the last_value property
-					customPublicId = Number(customPublicId); // Convert to Number
-
-					if (customPublicId > ID_CONSTRAINT.MIN_INT) {
-						// If not first entry,  increment by 1
-						customPublicId = customPublicId + 1; // Increment by 1 to get the next ID value
-					}
-
-					customPublicId = `${PRODUCT_CONSTRAINT.FILE_NAME_PREFIX}${customPublicId}`;
-
-					const result = await cloudinary.uploader.upload(req.file.path, {
-						public_id: customPublicId,
-						folder: PRODUCT_CONSTRAINT.DEFAULT_IMAGE_FOLDER,
-					});
-					const photo_url = result.secure_url;
-
-					const results = await tx.products.create({
+					const createProduct = await tx.products.create({
 						data: {
 							name,
 							stock: Number(stock),
 							price: Number(price),
-							photo_url,
+							photo_url: "-placeholder-",
 							description,
 							category,
 							discounted_price,
 						},
 					});
 
+					const customPublicId = `${PRODUCT_CONSTRAINT.FILE_NAME_PREFIX}${createProduct.id}`; // Custom public ID for Cloudinary
+
+					const productImageConfig = await cloudinary.uploader.upload(
+						req.file.path,
+						{
+							//  Custom folder and public_id
+							public_id: customPublicId,
+							folder: PRODUCT_CONSTRAINT.DEFAULT_IMAGE_FOLDER,
+						}
+					);
+					productPhotoURL = productImageConfig.secure_url; // Get uploaded image URL
+
+					const results = await tx.products.update({
+						where: {
+							id: createProduct.id,
+						},
+						data: {
+							photo_url: productPhotoURL,
+						},
+					});
+
 					return results;
 				},
 				{
-					transactionOptions: {
-						isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
-						setTimeout: 10000,
-					},
+					isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+					setTimeout: 15000,
 				}
 			);
 
@@ -311,15 +314,17 @@ const productController = {
 					400,
 					"Product with the same name already exist !"
 				);
-			} else {
-				console.error(`\n${error}\n`);
-				return commonHelper.response(
-					res,
-					null,
-					500,
-					"Failed to create product"
-				);
 			}
+
+			if (productPhotoURL) {
+				// If product photo was uploaded before transaction failed, delete it
+				const cloudinaryPublicId = getCloudinaryPublicId(productPhotoURL);
+				await cloudinary.uploader.destroy(cloudinaryPublicId); // Delete uploaded image if transaction fails
+			}
+
+			console.error(`\n${error}\n`);
+
+			return commonHelper.response(res, null, 500, "Failed to create product");
 		}
 	},
 
@@ -380,7 +385,7 @@ const productController = {
 
 			let productInputErrors = {};
 
-			productInputErrors = await productInputCheck({
+			productInputErrors = productInputCheck({
 				name,
 				stock,
 				price,
@@ -456,10 +461,8 @@ const productController = {
 					return updatedData;
 				},
 				{
-					transactionOptions: {
-						isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
-						setTimeout: 10000,
-					},
+					isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+					setTimeout: 10000,
 				}
 			);
 
@@ -527,7 +530,7 @@ const productController = {
 
 			const updatingProductImage = await prisma.$transaction(
 				async (tx) => {
-					const selectedProduct = await tx.products.findUnique({
+					const selectedProduct = await prisma.products.findUnique({
 						where: {
 							id: id,
 						},
@@ -564,10 +567,8 @@ const productController = {
 				},
 
 				{
-					transactionOptions: {
-						isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
-						setTimeout: 10000,
-					},
+					isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+					setTimeout: 12000,
 				}
 			);
 
@@ -580,15 +581,9 @@ const productController = {
 		} catch (error) {
 			if (error.message === "PRODUCT_NOT_FOUND") {
 				return commonHelper.response(res, null, 404, "Product not found");
-			} else {
-				console.error(`\n${error}\n`);
-				return commonHelper.response(
-					res,
-					null,
-					500,
-					"Failed to update product"
-				);
 			}
+			console.error(`\n${error}\n`);
+			return commonHelper.response(res, null, 500, "Failed to update product");
 		}
 	},
 
@@ -627,13 +622,14 @@ const productController = {
 								id: id,
 							},
 							select: {
-								id: true,
-								name: true,
-								category: true,
 								photo_url: true,
 							},
 							relationLoadStrategy: "join",
 						});
+
+					if (dataInDb === null) {
+						throw new Error("PRODUCT_NOT_FOUND");
+					}
 
 					const results = await tx.products.delete({
 						// Delete product from database
@@ -651,10 +647,8 @@ const productController = {
 					return results; // Return deleted product data to 'productDeletion'
 				},
 				{
-					transactionOptions: {
-						isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
-						setTimeout: 10000,
-					},
+					isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+					setTimeout: 12000,
 				}
 			);
 
@@ -665,6 +659,17 @@ const productController = {
 				"Product successfully deleted"
 			);
 		} catch (error) {
+			if (error.message === "PRODUCT_NOT_FOUND") {
+				return commonHelper.response(res, null, 404, "Product not found");
+			}
+			if (error.code === "P2003") {
+				return commonHelper.response(
+					res,
+					null,
+					400,
+					"Cannot delete a product that has been ordered by user!"
+				);
+			}
 			console.error(`\n${error}\n`);
 			return commonHelper.response(res, null, 500, "Failed to delete product");
 		}
@@ -698,7 +703,11 @@ const productController = {
 
 			// ------------------------ Input Validations ----------------------- //
 
-			const { skip, total, totalPages } = await pagination({ page, limit });
+			const { skip, total, totalPages } = await pagination({
+				page,
+				limit,
+				table: "products",
+			});
 
 			const productSentence = product.replace(/\d/g, ""); // Remove digits from search query (for broader search)
 
@@ -787,9 +796,14 @@ const productController = {
 
 			let sortResults = null;
 
-			const { skip, total, totalPages } = await pagination({ page, limit });
+			const { skip, total, totalPages } = await pagination({
+				page,
+				limit,
+				table: "products",
+			});
 
 			if (PRODUCT_CONSTRAINT.CATEGORY_ENUM.includes(sort)) {
+				// If sort is a valid category of products
 				sortResults = await prisma.products.findMany({
 					where: {
 						category: sort,
@@ -798,14 +812,14 @@ const productController = {
 					take: limit,
 					orderBy: { id: "asc" },
 				});
-			} else if (sort === inputConstraint.PRODUCT_CONSTRAINT.IN_STOCK) {
+			} else if (sort === PRODUCT_CONSTRAINT.IN_STOCK) {
 				sortResults = await prisma.products.findMany({
 					where: {
 						stock: { gt: 0 },
 					},
 					orderBy: { id: "asc" },
 				});
-			} else if (sort === inputConstraint.PRODUCT_CONSTRAINT.OUT_OF_STOCK) {
+			} else if (sort === PRODUCT_CONSTRAINT.OUT_OF_STOCK) {
 				sortResults = await prisma.products.findMany({
 					where: {
 						stock: { lt: 1 },

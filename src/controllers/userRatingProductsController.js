@@ -68,9 +68,8 @@ const userRatingProductsController = {
 					},
 				},
 				select: {
-					id: true, // We only need to know if it exists
+					id: true,
 				},
-				// Use join for accurate snapshot check
 				relationLoadStrategy: "join",
 			});
 

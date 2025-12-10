@@ -160,7 +160,7 @@ const userCartControllers = {
 				},
 				{
 					isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead,
-					setTimeout: 10000,
+					setTimeout: 15000,
 				}
 			);
 
@@ -229,7 +229,7 @@ const userCartControllers = {
 								user_id: req.user.id,
 							},
 							select: {
-								id: true, // Need to specify this if you use select
+								id: true,
 								carts_items: {
 									where: { product_id: id },
 									select: {
@@ -251,6 +251,7 @@ const userCartControllers = {
 						let updateCartItem = null;
 
 						if (decreasedItem < 1) {
+							// If quantity drops below 1, remove the item from cart
 							updateCartItem = await tx.carts_items.delete({
 								where: {
 									id: cartItem.id,
@@ -273,7 +274,7 @@ const userCartControllers = {
 					},
 					{
 						isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead,
-						setTimeout: 10000,
+						setTimeout: 15000,
 					}
 				);
 
@@ -303,7 +304,7 @@ const userCartControllers = {
 	RemoveMultipleProductFromCart: async (req, res) => {
 		const { product_id } = req.body;
 		try {
-			// 1. Validate that input exists and is an array
+			// Validate that input exists and is an array
 			if (!Array.isArray(product_id) || product_id.length === 0) {
 				return commonHelper.response(
 					res,
@@ -313,12 +314,12 @@ const userCartControllers = {
 				);
 			}
 
-			// 2. Perform the Batch Deletion
+			// Perform the Batch Deletion
 
 			const deleteResult = await prisma.carts_items.deleteMany({
 				where: {
 					product_id: {
-						in: product_id.map((id) => Number(id)), // Ensure IDs are numbers
+						in: product_id.map((id) => Number(id)), // Batch delete operations using IN clause and JS map
 					},
 					carts: {
 						user_id: req.user.id,
@@ -328,9 +329,12 @@ const userCartControllers = {
 
 			// 3. Check result
 			if (deleteResult.count === 0) {
-				return res.status(404).json({
-					message: "No matching items found to delete.",
-				});
+				return commonHelper.response(
+					res,
+					null,
+					404,
+					"No matching products found in cart to delete"
+				);
 			}
 
 			return commonHelper.response(
@@ -355,20 +359,21 @@ const userCartControllers = {
 					"Request body is missing !"
 				);
 			}
-			let { address_id, payment_method, selected_items } = req.body;
-			// selected_items format: [{ product_id: 1, quantity: 2 }, { product_id: 5, quantity: 1 }]
+			let { address_id, payment_method, product_id } = req.body;
+			const userId = req.user.id;
+
+			const productIds = product_id.map((id) => Number(id));
+			address_id = Number(address_id);
 
 			// ------------------------ Input Validations ----------------------- //
-			if (!address_id || !payment_method || !selected_items) {
+			if (!address_id || !payment_method || !productIds.length) {
 				return commonHelper.response(
 					res,
 					null,
 					400,
-					"Address ID, payment method, and selected items are required !"
+					"Address ID, payment method, and selected items are required!"
 				);
 			}
-
-			address_id = Number(address_id);
 
 			const addressCheck = serialIdCheck(address_id);
 
@@ -393,57 +398,64 @@ const userCartControllers = {
 				);
 			}
 
-			const userId = req.user.id;
+			// Fetch selected cart items to get current quantities
+			const cartItems = await prisma.carts_items.findMany({
+				where: {
+					product_id: { in: productIds }, // Filter by selected IDs
+					carts: { user_id: userId }, // Scope to the current user's cart
+				},
+				select: { product_id: true, quantity: true },
+			});
 
-			// 1. Validation for the array
-			if (!Array.isArray(selected_items) || selected_items.length === 0) {
-				return commonHelper.response(
-					res,
-					null,
-					400,
-					"Please select at least one item to checkout."
-				);
+			if (cartItems.length !== productIds.length) {
+				throw new Error("SELECTED_ITEMS_NOT_FOUND_IN_CART");
 			}
 
-			// ------------------------ Input Validations ----------------------- //
+			// Fetch product details (stock and price) for all selected items
+			const products = await prisma.products.findMany({
+				where: { id: { in: productIds } },
+				select: {
+					id: true,
+					stock: true,
+					discounted_price: true,
+					price: true,
+					name: true,
+				},
+			});
 
-			const productIds = selected_items.map((item) => item.product_id);
+			// Map product details for quick lookup
+			const productMap = new Map(products.map((p) => [p.id, p]));
+
+			// --- Final Pre-Transaction Stock Validation (using fetched quantities) ---
+			for (const item of cartItems) {
+				const product = productMap.get(item.product_id);
+
+				// Check if product exists in the DB or if stock is insufficient
+				if (!product || product.stock < item.quantity) {
+					throw new Error(
+						`INSUFFICIENT_STOCK_${product?.name || item.product_id}`
+					);
+				}
+			}
+
+			const transactionTime = 15000 + productIds.length * 5000;
 
 			const checkoutTransaction = await prisma.$transaction(
 				async (tx) => {
-					// 2. Fetch specific items from the cart matching the user's selection
+					// Get the user's cart ID
 					const userCart = await tx.carts.findUnique({
 						where: { user_id: userId },
-						include: {
-							carts_items: {
-								where: { product_id: { in: productIds } }, // Filter by selected IDs
-								include: { products: true },
-							},
-						},
+						select: { id: true },
 					});
-
-					if (!userCart || userCart.carts_items.length === 0) {
-						throw new Error("SELECTED_ITEMS_NOT_FOUND_IN_CART");
-					}
 
 					let totalAmount = 0;
 					const orderItemsData = [];
 
-					// 3. Loop through SELECTED items
-					for (const item of userCart.carts_items) {
-						const product = item.products;
-
-						// IMPORTANT: Use the quantity from the INPUT, not the Cart total
-						const inputItem = selected_items.find(
-							(si) => si.product_id === product.id
-						);
-						const orderQuantity = inputItem.quantity;
-
-						if (product.stock < orderQuantity) {
-							throw new Error(`INSUFFICIENT_STOCK_${product.name}`);
-						}
-
+					for (const item of cartItems) {
+						const product = productMap.get(item.product_id);
+						const orderQuantity = item.quantity;
 						const price = product.discounted_price || product.price;
+
 						totalAmount += price * orderQuantity;
 
 						orderItemsData.push({
@@ -452,7 +464,7 @@ const userCartControllers = {
 							price_at_order: price,
 						});
 
-						// Deduct Stock
+						// Deduct Stock (Critical operation inside the transaction)
 						await tx.products.update({
 							where: { id: product.id },
 							data: {
@@ -462,7 +474,7 @@ const userCartControllers = {
 						});
 					}
 
-					// 4. Create Order and Payment (Standard logic)
+					// Create Order Header
 					const newOrder = await tx.orders.create({
 						data: {
 							user_id: userId,
@@ -472,6 +484,7 @@ const userCartControllers = {
 						},
 					});
 
+					// Create All Ordered Items (Batch Insert)
 					await tx.ordered_item.createMany({
 						data: orderItemsData.map((item) => ({
 							...item,
@@ -479,10 +492,11 @@ const userCartControllers = {
 						})),
 					});
 
-					const packagingFee = PAYMENT_CONSTRAINT.PACKAGING_FEE; // Example fixed packaging fee
-					const shippingFee = PAYMENT_CONSTRAINT.SHIPPING_FEE; // Example fixed shipping fee
-
-					const finalPaymentAmount = totalAmount + packagingFee + shippingFee; // Add shipping or other fees
+					// Create Payment Record (COD example)
+					const finalPaymentAmount =
+						totalAmount +
+						(PAYMENT_CONSTRAINT.PACKAGING_FEE +
+							PAYMENT_CONSTRAINT.SHIPPING_FEE);
 
 					await tx.payments.create({
 						data: {
@@ -494,7 +508,7 @@ const userCartControllers = {
 						},
 					});
 
-					// 5. SELECTIVE REMOVAL: Only remove the items ordered
+					// Remove Ordered Items from Cart
 					await tx.carts_items.deleteMany({
 						where: {
 							cart_id: userCart.id,
@@ -505,8 +519,8 @@ const userCartControllers = {
 					return newOrder;
 				},
 				{
-					isolationLevel: "RepeatableRead",
-					timeout: 20000,
+					isolationLevel: "Serializable",
+					timeout: transactionTime,
 				}
 			);
 

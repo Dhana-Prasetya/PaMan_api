@@ -20,7 +20,7 @@ const contactController = {
 
 			let errors = {}; // Object to hold every client errors
 
-			errors = await userInputCheck({
+			errors = userInputCheck({
 				username,
 				email,
 				message,

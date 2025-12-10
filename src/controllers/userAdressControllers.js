@@ -53,7 +53,7 @@ const userAdressControllers = {
 
 			const transaction = await prisma.$transaction(
 				async (tx) => {
-					let defaultAddress = null;
+					let defaultAddressStatus = null;
 
 					const checkDefaultAddress = await tx.user_address.findMany({
 						where: {
@@ -66,9 +66,9 @@ const userAdressControllers = {
 
 					const emptyObject = Object.keys(checkDefaultAddress); // Check if the result is empty
 					if (emptyObject.length === 0) {
-						defaultAddress = true; // If empty, set as default address
+						defaultAddressStatus = true; // If empty, set as default address
 					} else {
-						defaultAddress = false;
+						defaultAddressStatus = false;
 					}
 
 					const insertAddress = await tx.user_address.create({
@@ -81,15 +81,15 @@ const userAdressControllers = {
 							province,
 							postal_code,
 							detail,
-							is_default: defaultAddress,
+							is_default: defaultAddressStatus,
 						},
 					});
 
 					return insertAddress;
 				},
 				{
-					isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
-					setTimeout: 10000,
+					isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead,
+					timeout: 12000,
 				}
 			);
 
@@ -179,8 +179,8 @@ const userAdressControllers = {
 					return setDefault;
 				},
 				{
-					isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
-					setTimeout: 10000,
+					isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead,
+					timeout: 12000,
 				}
 			);
 
@@ -243,7 +243,7 @@ const userAdressControllers = {
 			) {
 				return res
 					.status(400)
-					.json({ message: "One of the fields are required !" });
+					.json({ message: "One of the fields are required to update !" });
 			}
 
 			let errors = userAddressInputCheck({
@@ -371,7 +371,7 @@ const userAdressControllers = {
 					return deletedAddress;
 				},
 				{
-					isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+					isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead,
 					timeout: 10000,
 				}
 			);

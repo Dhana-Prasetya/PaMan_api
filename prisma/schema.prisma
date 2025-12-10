@@ -72,7 +72,7 @@ model user_address {
   kecamatan      String   @db.VarChar(255)
   city           String   @db.VarChar(100)
   province       String   @db.VarChar(100)
-  postal_code    String   @db.VarChar(20)
+  postal_code    String   @db.VarChar(5)
   detail         String?  @db.VarChar(255)
   is_default     Boolean? @default(false)
   orders         orders[]

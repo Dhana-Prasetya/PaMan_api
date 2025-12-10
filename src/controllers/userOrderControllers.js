@@ -9,6 +9,8 @@ const {
 } = require("../config/inputConstraint");
 const paginationCheck = require("../helper/paginationCheck");
 const capitalizeFirstLetter = require("../helper/capitalizeFirstLetter");
+const pagination = require("../helper/pagination");
+const orderQuantityCheck = require("../helper/orderQuantityCheck");
 
 const prisma = new PrismaClient();
 
@@ -67,10 +69,10 @@ const userOrderControllers = {
 				);
 			}
 
-			const validProductQuantity = productQuantityCheck(quantity);
+			const validOrderQuantity = orderQuantityCheck(quantity);
 
-			if (validProductQuantity !== true) {
-				return commonHelper.response(res, null, 400, validProductQuantity);
+			if (validOrderQuantity !== true) {
+				return commonHelper.response(res, null, 400, validOrderQuantity);
 			}
 
 			const getUserAddress = await prisma.user_address.findFirst({
@@ -126,39 +128,36 @@ const userOrderControllers = {
 						priceAtOrder = isProductAvaiable.price;
 					}
 
-					const makeOrder = await tx.orders.create({
+					const packagingFee = PAYMENT_CONSTRAINT.PACKAGING_FEE; // Fixed packaging fee
+					const shippingFee = PAYMENT_CONSTRAINT.SHIPPING_FEE; // Fixed shipping fee
+
+					const finalPaymentAmount = amountToPay + packagingFee + shippingFee; // Add shipping and other fees
+
+					// Refactor
+					const makeOrders = await tx.orders.create({
 						data: {
 							user_id: req.user.id,
 							total_price: amountToPay,
 							order_status: "Dikemas",
 							destination: getUserAddress.id,
+							ordered_item: {
+								create: {
+									product_id: product_id,
+									quantity: quantity,
+									price_at_order: priceAtOrder,
+								},
+							},
+							payments: {
+								create: {
+									payment_method: payment_method,
+									amount_paid: 0, // Since COD, amount paid is zero at order time
+									amount_to_pay: finalPaymentAmount,
+									payment_status: "Proses",
+								},
+							},
 						},
 					});
-
-					const makeOrderDetails = await tx.ordered_item.create({
-						data: {
-							order_id: makeOrder.id, // Get the order ID from the created order
-							product_id: product_id,
-							quantity: quantity,
-							price_at_order: priceAtOrder,
-						},
-					});
-
-					const packagingFee = PAYMENT_CONSTRAINT.PACKAGING_FEE; // Example fixed packaging fee
-					const shippingFee = PAYMENT_CONSTRAINT.SHIPPING_FEE; // Example fixed shipping fee
-
-					const finalPaymentAmount = amountToPay + packagingFee + shippingFee; // Add shipping or other fees
-
-					const makePaymentRecord = await tx.payments.create({
-						// Create payment record FOR COD ONLY
-						data: {
-							order_id: makeOrder.id,
-							payment_method: payment_method,
-							amount_paid: 0, // Since COD, amount paid is zero at order time
-							amount_to_pay: finalPaymentAmount,
-							payment_status: "Proses",
-						},
-					}); // Create payment record
+					// Refactor
 
 					const updateProductStock = await tx.products.update({
 						where: { id: product_id },
@@ -168,7 +167,7 @@ const userOrderControllers = {
 						},
 					});
 
-					return makePaymentRecord;
+					return makeOrders;
 				},
 				{
 					isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead,
@@ -226,10 +225,15 @@ const userOrderControllers = {
 				return res.status(400).json({ paginationErrors });
 			}
 
-			sort = sort.toLowerCase();
+			sort = sort.toLowerCase(); // Normalization
 			sort = capitalizeFirstLetter(sort);
 
-			if (sort !== "All") {
+			if (
+				sort !== "All" ||
+				sort !== "Dikemas" ||
+				sort !== "Dikirim" ||
+				sort !== "Selesai"
+			) {
 				if (!ORDER_CONSTRAINT.USER_STATUS_ENUM.includes(sort)) {
 					return commonHelper.response(
 						res,
@@ -243,42 +247,40 @@ const userOrderControllers = {
 			// ------------------------ Input Validations ----------------------- //
 
 			// ------------------------ Pagination Logic ----------------------- //
-			const skip = (page - 1) * limit;
-			let total = await prisma.orders.count();
-			const totalPages = Math.ceil(total / limit);
+
+			const { skip, total, totalPages } = await pagination({
+				page,
+				limit,
+				table: "orders",
+			});
 			// ------------------------ Pagination Logic ----------------------- //
 
-			let getPaginatedMyOrdersSorted = null;
+			// Nase where clause
+			const whereClause = {
+				user_id: req.user.id,
+			};
 
-			if (sort === "All") {
-				// No sorting, get all orders
-				getPaginatedMyOrdersSorted = await prisma.orders.findMany({
-					where: { user_id: req.user.id },
-					select: {
-						order_date: true,
-						ordered_item: {
-							select: { products: { select: { name: true, photo_url: true } } },
-						},
-					},
-					skip,
-					take: limit,
-					orderBy: { id: "asc" },
-				});
-			} else {
-				// Filter by specific order status
-				getPaginatedMyOrdersSorted = await prisma.orders.findMany({
-					where: { user_id: req.user.id },
-					select: {
-						order_date: true,
-						ordered_item: {
-							select: { products: { select: { name: true, photo_url: true } } },
-						},
-					},
-					skip,
-					take: limit,
-					orderBy: { id: "asc" },
-				});
+			// Conditionally add the order_status filter
+			if (sort !== "All") {
+				whereClause.order_status = sort; // Add order_status filter only if sort is not 'All'
 			}
+
+			const getPaginatedMyOrdersSorted = await prisma.orders.findMany({
+				where: whereClause,
+				select: {
+					order_date: true,
+					order_status: true,
+					ordered_item: {
+						select: {
+							quantity: true,
+							products: { select: { name: true, photo_url: true } },
+						},
+					},
+				},
+				skip,
+				take: limit,
+				orderBy: { id: "asc" },
+			});
 
 			const payload = {
 				sort,
@@ -330,7 +332,7 @@ const userOrderControllers = {
 						},
 					},
 					users: {
-						select: { fullname: true, phone_number: true },
+						select: { full_name: true, phone_number: true },
 					},
 					user_address: {
 						select: {

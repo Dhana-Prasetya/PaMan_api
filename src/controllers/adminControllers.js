@@ -10,6 +10,7 @@ const {
 } = require("../config/inputConstraint.js");
 const paginationCheck = require("../helper/paginationCheck.js");
 const serialIdCheck = require("../helper/serial-id-check.js");
+const pagination = require("../helper/pagination.js");
 
 const prisma = new PrismaClient();
 
@@ -179,9 +180,11 @@ const adminController = {
 
 			if (sort === "all") {
 				// ------------------------ Pagination Logic ----------------------- //
+
 				skip = (page - 1) * limit;
 				total = (await prisma.users.count()) + (await prisma.admin.count());
 				totalPages = Math.ceil(total / limit);
+
 				// ------------------------ Pagination Logic ----------------------- //
 
 				userResults = await prisma.users.findMany({
@@ -379,13 +382,18 @@ const adminController = {
 			// ------------------------ Input Validations ----------------------- //
 
 			// ------------------------ Pagination Logic ----------------------- //
-			const skip = (page - 1) * limit;
-			let total = await prisma.orders.count();
-			const totalPages = Math.ceil(total / limit);
+
+			const { skip, total, totalPages } = await pagination({
+				page,
+				limit,
+				table: "orders",
+			});
+
 			// ------------------------ Pagination Logic ----------------------- //
 
 			const getPaginatedUserOrders = await prisma.orders.findMany({
 				select: {
+					id: true,
 					order_status: true,
 					total_price: true,
 					order_date: true,
@@ -447,7 +455,7 @@ const adminController = {
 						},
 					},
 					users: {
-						select: { fullname: true, phone_number: true },
+						select: { full_name: true, phone_number: true },
 					},
 					user_address: {
 						select: {
@@ -497,6 +505,8 @@ const adminController = {
 				);
 			}
 
+			const arrayTransactionTime = 10000 + 4000 * updates.length; // Estimate 10 + 4 seconds per update item
+
 			// 2. Execution via Transaction for Atomicity
 			const results = await prisma.$transaction(
 				async (tx) => {
@@ -512,7 +522,7 @@ const adminController = {
 							!ORDER_CONSTRAINT.STATUS_ENUM.includes(status)
 						) {
 							throw new Error(
-								`Invalid data: ID ${orderIdStr} or Status ${status}`
+								`Invalid data: ID ${orderIdStr} or Status ${status}. Avaiable statuses are: 'Dikemas', 'Dikirim', 'Diterima','Selesai'`
 							);
 						}
 
@@ -547,7 +557,7 @@ const adminController = {
 				},
 				{
 					isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead,
-					setTimeout: 15000,
+					setTimeout: arrayTransactionTime,
 				}
 			);
 
@@ -593,6 +603,8 @@ const adminController = {
 				);
 			}
 
+			const arrayTransactionTime = 10000 + 5000 * deletes.length; // Estimate 10 + 4 seconds per update item
+
 			// 2. Execution via Transaction for Atomicity
 			const results = await prisma.$transaction(
 				async (tx) => {
@@ -602,22 +614,45 @@ const adminController = {
 						const [orderIdStr] = del;
 						const orderId = Number(orderIdStr);
 
+						// Deleting payments first due to foreign key restrict delete constraint
 						const deletingPayments = await tx.payments.deleteMany({
 							where: { order_id: orderId },
 						});
 
-						// Update Operation
-						const updated = await tx.orders.delete({
+						// Delete the Order and retrieve the items
+						const deletingOrder = await tx.orders.delete({
 							where: { id: orderId },
+							select: {
+								ordered_item: {
+									select: {
+										product_id: true,
+										quantity: true,
+									},
+								},
+							},
 						});
 
-						updatedRecords.push(updated);
+						// Iterate and return stock for each item
+						const returnStock = deletingOrder.ordered_item.map(async (item) => {
+							return tx.products.update({
+								where: { id: item.product_id },
+								data: {
+									stock: { increment: item.quantity },
+									sold: { decrement: item.quantity },
+								},
+							});
+						});
+
+						// Wait for all stock updates to complete
+						await Promise.all(returnStock);
+
+						updatedRecords.push(deletingOrder);
 					}
 					return updatedRecords;
 				},
 				{
 					isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead,
-					setTimeout: 15000,
+					setTimeout: arrayTransactionTime,
 				}
 			);
 

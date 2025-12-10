@@ -20,19 +20,19 @@ const userController = {
 			if (!req.body) {
 				return res.status(400).json({ message: "Request body is missing !" });
 			}
-			let { fullname, phone_number, email, password, gender } = req.body;
+			let { full_name, phone_number, email, password, gender } = req.body;
 
 			// ------------------------ Input & Validations ----------------------- //
 
 			let errors = {}; // Object to hold every client errors
 
-			if (!fullname || !password || !email || !phone_number || !gender) {
+			if (!full_name || !password || !email || !phone_number || !gender) {
 				// Check for empty fields
 				return res.status(400).json({ message: "All fields are required !" });
 			}
 
-			errors = await userProfileInputCheck({
-				fullname,
+			errors = userProfileInputCheck({
+				full_name,
 				email,
 				password,
 				phone_number,
@@ -49,7 +49,7 @@ const userController = {
 			const salt = await bcrypt.genSalt(saltRounds);
 			const hashedPassword = await bcrypt.hash(password, salt);
 
-			let username = fullname.trim().split(/\s+/)[0]; // Get first word from fullname as username
+			let username = full_name.trim().split(/\s+/)[0]; // Get first word from fullname as username
 			username = username.toLowerCase(); // Normalize username to lowercase
 			username = capitalizeFirstLetter(username); // Capitalize first letter of username
 
@@ -79,7 +79,7 @@ const userController = {
 			} while (!isUnique);
 
 			let data = {
-				fullname,
+				full_name,
 				username: finalUsername,
 				password: hashedPassword,
 				phone_number,
@@ -130,7 +130,7 @@ const userController = {
 
 			let errors = {}; // Object to hold every client errors
 
-			errors = await userProfileInputCheck({
+			errors = userProfileInputCheck({
 				email,
 				password,
 			});
@@ -214,11 +214,12 @@ const userController = {
 				},
 				select: {
 					username: true,
-					fullname: true,
+					full_name: true,
 					email: true,
 					phone_number: true,
 					birthday: true,
 					gender: true,
+					register_date: true,
 				},
 				relationLoadStrategy: "join",
 			});
@@ -251,7 +252,7 @@ const userController = {
 			}
 			let {
 				username = null,
-				fullname = null,
+				full_name = null,
 				phone_number = null,
 				email = null,
 				birthday = null,
@@ -268,7 +269,7 @@ const userController = {
 				!phone_number &&
 				!gender &&
 				!birthday &&
-				!fullname
+				!full_name
 			) {
 				return res.status(400).json({
 					message:
@@ -276,13 +277,13 @@ const userController = {
 				});
 			}
 
-			errors = await userProfileInputCheck({
+			errors = userProfileInputCheck({
 				username,
 				email,
 				phone_number,
 				gender,
 				birthday,
-				fullname,
+				full_name,
 			});
 
 			if (Object.keys(errors).length > 0) {
@@ -299,7 +300,7 @@ const userController = {
 
 			let data = {
 				username,
-				fullname,
+				full_name,
 				phone_number,
 				gender,
 				email,
@@ -307,7 +308,7 @@ const userController = {
 			};
 
 			if (username != null) data.username = username; // If these data provided, add to data object
-			if (fullname != null) data.fullname = fullname;
+			if (full_name != null) data.full_name = full_name;
 			if (phone_number != null) data.phone_number = phone_number;
 			if (gender != null) data.gender = gender;
 			if (email != null) data.email = email.toLowerCase();
@@ -332,6 +333,9 @@ const userController = {
 				}
 			);
 
+			delete editProfileDb[0].password; // Remove sensitive data from response
+			delete editProfileDb[0].temporary_token;
+
 			return commonHelper.response(
 				res,
 				editProfileDb,
@@ -352,6 +356,8 @@ const userController = {
 	},
 
 	EditAvatar: async (req, res, next) => {
+		let photo_url = null;
+
 		try {
 			const myProfile = await prisma.users.findUnique({
 				where: {
@@ -378,8 +384,6 @@ const userController = {
 				);
 			}
 
-			let photo_url;
-
 			if (myProfile.avatar_url === USER_CONSTRAINT.DEFAULT_USER_AVATAR_URL) {
 				// If user still has default avatar, upload new avatar
 				let customPublicId = `${USER_CONSTRAINT.FILE_NAME_PREFIX}${req.user.id}`;
@@ -394,6 +398,7 @@ const userController = {
 
 				photo_url = updatingDefaultAvatar.secure_url; // Get the updated image URL
 			} else {
+				// User already has custom avatar, overwrite existing avatar
 				const cloudinaryPublicId = getCloudinaryPublicId(myProfile.avatar_url); // Extract public ID from existing custom avatar URL
 
 				const updatingCustomAvatar = await cloudinary.uploader.upload(
@@ -407,25 +412,23 @@ const userController = {
 				photo_url = updatingCustomAvatar.secure_url; // Get the updated image URL
 			}
 
-			const newPhotoUrl = {
-				avatar_url: photo_url,
-			};
-
 			const result = await prisma.users.update({
 				where: {
 					id: req.user.id, // Get user id from userAuth middleware (token)
 				},
-				data: newPhotoUrl,
+				data: { avatar_url: photo_url },
 			});
 
-			return commonHelper.response(
-				res,
-				newPhotoUrl,
-				201,
-				"Edit avatar success !"
-			);
+			return commonHelper.response(res, result, 201, "Edit avatar success !");
 		} catch (error) {
 			console.error(`\n${error}\n`);
+
+			if (photo_url) {
+				// Cleanup: Delete the uploaded image from Cloudinary if DB update fails
+				const cloudinaryPublicId = getCloudinaryPublicId(photo_url);
+				await cloudinary.uploader.destroy(cloudinaryPublicId);
+			}
+
 			return commonHelper.response(res, null, 500, "Internal server error");
 		}
 	},
@@ -565,7 +568,7 @@ const userController = {
 
 			let errors = {}; // Object to hold every client errors
 
-			errors = await userProfileInputCheck({
+			errors = userProfileInputCheck({
 				email,
 				password,
 			});
@@ -588,6 +591,7 @@ const userController = {
 			}
 
 			if (myProfile.avatar_url !== USER_CONSTRAINT.DEFAULT_USER_AVATAR_URL) {
+				// If user has custom avatar, delete it from Cloudinary
 				const cloudinaryPublicId = getCloudinaryPublicId(myProfile.avatar_url); // Extract public ID from existing custom avatar URL
 				await cloudinary.uploader.destroy(cloudinaryPublicId);
 			}

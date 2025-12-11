@@ -1,6 +1,10 @@
 const commonHelper = require("../helper/common.js");
 const { cloudinary } = require("../middleware/cloudinary.js");
 const { PrismaClient, Prisma } = require("@prisma/client");
+const redisClient = require("../helper/redisClient.js");
+const {
+	invalidateProductPaginationCache,
+} = require("../helper/cacheInvalidation.js");
 const {
 	PAGINATION_CONSTRAINT,
 	PRODUCT_CONSTRAINT,
@@ -38,6 +42,23 @@ const productController = {
 				return res.status(400).json({ paginationErrors });
 			}
 
+			// Create a cache key based on page and limit
+			const cacheKey = `products:pagination:${page}:${limit}`;
+
+			// Try to get from Redis cache
+			const cachedData = await redisClient.get(cacheKey);
+			if (cachedData) {
+				console.log(`[Cache HIT] ${cacheKey}`);
+				return commonHelper.response(
+					res,
+					JSON.parse(cachedData),
+					200,
+					"Getting all products Success (from cache)"
+				);
+			}
+
+			console.log(`[Cache MISS] ${cacheKey}`);
+
 			// ------------------------ Input Validations ----------------------- //
 
 			const { skip, total, totalPages } = await pagination({
@@ -59,6 +80,9 @@ const productController = {
 				totalPages,
 				results,
 			};
+
+			// Store in Redis cache with 1 hour expiration (3600 seconds)
+			await redisClient.setEx(cacheKey, 3600, JSON.stringify(payload));
 
 			return commonHelper.response(
 				res,
@@ -299,6 +323,9 @@ const productController = {
 				}
 			);
 
+			// Invalidate cache after successful product creation
+			await invalidateProductPaginationCache();
+
 			return commonHelper.response(
 				res,
 				insertProductTransaction,
@@ -464,6 +491,9 @@ const productController = {
 					setTimeout: 10000,
 				}
 			);
+
+			// Invalidate cache after successful product update
+			await invalidateProductPaginationCache();
 
 			return commonHelper.response(
 				// Return succeed response
@@ -650,6 +680,9 @@ const productController = {
 					setTimeout: 12000,
 				}
 			);
+
+			// Invalidate cache after successful product deletion
+			await invalidateProductPaginationCache();
 
 			return commonHelper.response(
 				res,

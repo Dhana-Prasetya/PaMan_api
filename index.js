@@ -8,6 +8,48 @@ const cors = require("cors"); // Calling cors package to select which origin can
 const morgan = require("morgan"); // Calling morgan package for logging
 const helmet = require("helmet"); // Calling helmet package for security headers by telling browser to block unknown sources
 const rateLimit = require("express-rate-limit");
+const session = require("express-session");
+const redis = require("redis");
+const { RedisStore } = require("connect-redis");
+
+// ---------------------------------------- Redis ----------------------------------------
+
+const envStage = process.env.ENV_STAGE || "dev"; // Get environment stage from .env file
+let redisSecure = null;
+
+if (envStage === "prod") {
+	redisSecure = true;
+	app.set("trust proxy", 1);
+}
+
+const redisClient = redis.createClient({
+	host: "localhost",
+	port: 6379,
+	legacyMode: true,
+});
+
+redisClient.connect().catch(console.error);
+
+const redisStore = new RedisStore({ client: redisClient });
+
+app.use(
+	session({
+		name: process.env.REDIS_SESSION_ID, // Name of the session ID cookie to set in the browser
+		store: redisStore, // Tell Express to use Redis for session storage
+		secret: process.env.REDIS_KEY_JWT, // Used to sign the session ID cookie. CHANGE THIS.
+		resave: false, // Prevents session from being saved back to the store if it was never modified
+		saveUninitialized: true, // Saves new sessions that have not been modified
+		cookie: {
+			secure: redisSecure, // Set to true if using HTTPS
+			httpOnly: true, // Prevents client-side JS from reading the cookie
+			maxAge: 1000 * 60 * 60 * 24, // 24 hours
+		},
+	})
+);
+
+redisClient.on("error", (err) => {
+	console.error("Could not connect to Redis:", err);
+});
 
 // ---------------------------------------- Cors ----------------------------------------
 
@@ -48,9 +90,6 @@ morgan.token("local", () => {
 app.use(
 	morgan('\n:local :ip ":method :url" :status :response-time ms - :user-agent')
 );
-
-// Tell Express to trust the proxy (ngrok)
-// app.set("trust proxy", true);
 
 // ---------------------------------------- Helmet, JSON Parse, Malformed JSON handling ----------------------------------------
 

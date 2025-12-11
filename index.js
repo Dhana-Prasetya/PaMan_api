@@ -54,7 +54,7 @@ app.use(
 
 // ---------------------------------------- Helmet, JSON Parse, Malformed JSON handling ----------------------------------------
 
-app.use(helmet()); // Use helmet middleware for setting security headers for browser
+app.use(helmet()); // Use helmet middleware for easier CSP and security headers
 
 app.use(express.json()); // Middleware function to parse JSON bodies (turn json text stream into usable js object)
 

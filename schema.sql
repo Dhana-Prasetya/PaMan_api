@@ -21,8 +21,7 @@ CREATE TABLE users (
 	role VARCHAR(10) not null, -- Contain 'user' and 'admin' role
 	birthday date,
 	avatar_url varchar(255),
-	register_date timestamp with time zone default now(),
-	temporary_token varchar(300)
+	register_date timestamp with time zone default now()
 );
 
 CREATE TABLE admin (
@@ -32,8 +31,7 @@ CREATE TABLE admin (
 	password VARCHAR(255) NOT NULL,
 	role VARCHAR(10) not null, -- Contain 'user' and 'admin' role
 	avatar_url varchar(255),
-	register_date timestamp with time zone default now(),
-	temporary_token varchar(300)
+	register_date timestamp with time zone default now()
 );
 
 CREATE TABLE products(

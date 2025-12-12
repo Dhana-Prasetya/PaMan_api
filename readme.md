@@ -6,6 +6,10 @@ An development (local deployment) of **Panen Mania API**
 
 This project is a robust backend API designed to power **Panen Mania** e-commerce platform. It provides a comprehensive set of endpoints for managing users, products, orders, and other essential e-commerce functionalities. The API prioritizes security, scalability, and maintainability, making it a solid foundation for building a thriving online store.
 
+# Disclaimer
+
+This project was **built on CommonJS**, therefore it might not compatible with some latest version of package.
+
 ## 🚀 Key Features
 
 - **User Authentication and Authorization:** Secure user registration, login, logout, and token refresh mechanisms using JWTs and Redis.

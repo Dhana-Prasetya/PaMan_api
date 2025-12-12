@@ -9,6 +9,9 @@ const { getCloudinaryPublicId } = require("../helper/getCloudinaryPublicId.js");
 const zodValidator = require("zod");
 const removeNullProperties = require("../helper/removeNullProperties.js");
 const capitalizeFirstLetter = require("../helper/capitalizeFirstLetter.js");
+const { v4: uuidv4 } = require("uuid"); // For generating unique token identifiers
+const redisClient = require("../helper/redisClient.js");
+const getRemainingTokenLifetime = require("../helper/getRemainingTokenLifetime.js");
 
 const saltRounds = 10; // Standard salt rounds for bcrypt
 const prisma = new PrismaClient();
@@ -184,19 +187,10 @@ const userController = {
 				id: dataInDb.id,
 				email: dataInDb.email,
 				role: dataInDb.role,
+				jti: uuidv4(), // Unique identifier for the token
 			};
 
 			dataInDb.token = generateToken(payload); // Create token and add to dataInDb object
-
-			const updateTempToken = await prisma.users.update({
-				// Store temp_token in database for logout purposes
-				where: {
-					id: dataInDb.id,
-				},
-				data: {
-					temporary_token: dataInDb.token,
-				},
-			});
 
 			return commonHelper.response(res, dataInDb, 201, "Login success");
 		} catch (error) {
@@ -622,17 +616,24 @@ const userController = {
 
 	Logout: async (req, res, next) => {
 		try {
-			const deleteTempToken = await prisma.users.update({
-				// Clear temp_token in database to invalidate token
-				where: {
-					id: req.user.id,
-				},
-				data: {
-					temporary_token: null,
-				},
-			});
+			const remainingTokenLife = getRemainingTokenLifetime(req.token);
 
-			if (!deleteTempToken) {
+			if (remainingTokenLife <= 0) {
+				return commonHelper.response(
+					res,
+					null,
+					403,
+					"User not authenticated !"
+				);
+			}
+
+			const blacklistToken = await redisClient.set(
+				`revoked:${req.user.jti}`, // Blacklist cache key
+				remainingTokenLife, // Redis TTL in seconds
+				JSON.stringify(req.user)
+			);
+
+			if (!blacklistToken) {
 				return commonHelper.response(
 					res,
 					null,

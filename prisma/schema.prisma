@@ -9,23 +9,22 @@ datasource db {
 }
 
 model users {
-  id              String           @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  username        String?          @unique @db.VarChar(20)
-  full_name       String           @db.VarChar(255)
-  phone_number    String           @unique @db.VarChar(20)
-  email           String           @unique @db.VarChar(255)
-  password        String           @db.VarChar(255)
-  gender          gender_enum
-  role            String           @db.VarChar(10)
-  birthday        DateTime?        @db.Date
-  avatar_url      String?          @db.VarChar(255)
-  register_date   DateTime?        @default(now()) @db.Timestamptz(6)
-  temporary_token String?          @db.VarChar(300)
-  carts           carts?
-  helpful_review  helpful_review[]
-  orders          orders[]
-  product_review  product_review[]
-  user_address    user_address[]
+  id             String           @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  username       String?          @unique @db.VarChar(20)
+  full_name      String           @db.VarChar(255)
+  phone_number   String           @unique @db.VarChar(20)
+  email          String           @unique @db.VarChar(255)
+  password       String           @db.VarChar(255)
+  gender         gender_enum
+  role           String           @db.VarChar(10)
+  birthday       DateTime?        @db.Date
+  avatar_url     String?          @db.VarChar(255)
+  register_date  DateTime?        @default(now()) @db.Timestamptz(6)
+  carts          carts?
+  helpful_review helpful_review[]
+  orders         orders[]
+  product_review product_review[]
+  user_address   user_address[]
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -47,14 +46,13 @@ model products {
 }
 
 model admin {
-  id              String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  username        String    @unique @db.VarChar(255)
-  email           String    @unique @db.VarChar(255)
-  password        String    @db.VarChar(255)
-  role            String    @db.VarChar(10)
-  avatar_url      String?   @db.VarChar(255)
-  register_date   DateTime? @default(now()) @db.Timestamptz(6)
-  temporary_token String?   @db.VarChar(300)
+  id            String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  username      String    @unique @db.VarChar(255)
+  email         String    @unique @db.VarChar(255)
+  password      String    @db.VarChar(255)
+  role          String    @db.VarChar(10)
+  avatar_url    String?   @db.VarChar(255)
+  register_date DateTime? @default(now()) @db.Timestamptz(6)
 }
 
 model contact {

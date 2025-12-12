@@ -11,6 +11,9 @@ const paginationCheck = require("../helper/paginationCheck");
 const capitalizeFirstLetter = require("../helper/capitalizeFirstLetter");
 const pagination = require("../helper/pagination");
 const orderQuantityCheck = require("../helper/orderQuantityCheck");
+const {
+	invalidateProductPaginationCache,
+} = require("../helper/cacheInvalidation");
 
 const prisma = new PrismaClient();
 
@@ -174,6 +177,9 @@ const userOrderControllers = {
 					setTimeout: 15000,
 				}
 			);
+
+			// Invalidate product pagination cache (stock and sold properties) in Redis
+			await invalidateProductPaginationCache();
 
 			return commonHelper.response(
 				res,

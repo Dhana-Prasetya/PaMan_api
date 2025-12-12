@@ -3,6 +3,9 @@ const commonHelper = require("../helper/common");
 const serialIdCheck = require("../helper/serial-id-check");
 const { PAYMENT_CONSTRAINT } = require("../config/inputConstraint");
 const orderQuantityCheck = require("../helper/orderQuantityCheck");
+const {
+	invalidateProductPaginationCache,
+} = require("../helper/cacheInvalidation");
 const prisma = new PrismaClient();
 
 const userCartControllers = {
@@ -509,6 +512,9 @@ const userCartControllers = {
 					timeout: transactionTime,
 				}
 			);
+
+			// Invalidate product pagination cache (stock and sold properties) in Redis
+			await invalidateProductPaginationCache();
 
 			return commonHelper.response(
 				res,

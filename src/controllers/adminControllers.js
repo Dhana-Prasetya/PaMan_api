@@ -11,6 +11,12 @@ const {
 const paginationCheck = require("../helper/paginationCheck.js");
 const serialIdCheck = require("../helper/serial-id-check.js");
 const pagination = require("../helper/pagination.js");
+const {
+	invalidateProductPaginationCache,
+} = require("../helper/cacheInvalidation.js");
+const { v4: uuidv4 } = require("uuid"); // For generating unique token identifiers
+const redisClient = require("../helper/redisClient.js");
+const getRemainingTokenLifetime = require("../helper/getRemainingTokenLifetime.js");
 
 const prisma = new PrismaClient();
 
@@ -95,19 +101,10 @@ const adminController = {
 				id: dataInDb.id,
 				email: dataInDb.email,
 				role: dataInDb.role,
+				jti: uuidv4(), // Unique identifier for the token
 			};
 
 			dataInDb.token = generateToken(payload); // Create token and add to dataInDb object
-
-			const updateTempToken = await prisma.admin.update({
-				// Store temp_token in database for token validation
-				where: {
-					id: dataInDb.id,
-				},
-				data: {
-					temporary_token: dataInDb.token,
-				},
-			});
 
 			return commonHelper.response(res, dataInDb, 201, "Login success");
 		} catch (error) {
@@ -118,17 +115,37 @@ const adminController = {
 
 	Logout: async (req, res, next) => {
 		try {
-			const deleteTempToken = await prisma.admin.update({
-				// Clear temp_token in database to invalidate token
-				where: {
-					id: req.admin.id,
-				},
-				data: {
-					temporary_token: null,
-				},
-			});
+			const remainingTokenLife = getRemainingTokenLifetime(req.token);
 
-			return commonHelper.response(res, null, 200, "Logout success !");
+			if (remainingTokenLife <= 0) {
+				return commonHelper.response(
+					res,
+					null,
+					403,
+					"User not authenticated !"
+				);
+			}
+
+			const blacklistToken = await redisClient.set(
+				`revoked:${req.admin.jti}`, // Blacklist cache key
+				remainingTokenLife, // Redis TTL in seconds
+				JSON.stringify(req.admin)
+			);
+
+			if (!blacklistToken) {
+				return commonHelper.response(
+					res,
+					null,
+					403,
+					"User not authenticated !"
+				);
+			}
+			return commonHelper.response(
+				res,
+				null,
+				200,
+				"Logout success, please delete admin token from browser local storage !"
+			);
 		} catch (error) {
 			console.error(`\n${error}\n`);
 			return commonHelper.response(res, null, 500, "Internal server error");
@@ -655,6 +672,9 @@ const adminController = {
 					setTimeout: arrayTransactionTime,
 				}
 			);
+
+			// Invalidate product pagination cache (stock and sold properties) in Redis
+			await invalidateProductPaginationCache();
 
 			return commonHelper.response(
 				res,

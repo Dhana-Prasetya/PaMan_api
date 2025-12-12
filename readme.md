@@ -43,7 +43,7 @@ This project is a robust backend API designed to power **Panen Mania** e-commerc
 - Node.js (v16 or higher)
 - npm or yarn
 - PostgreSQL database
-- Redis server
+- Redis server (localhost)
 - Cloudinary account
 - Environment variables configured in a `.env` file (see `.env.example` if available)
 
@@ -68,7 +68,7 @@ This project is a robust backend API designed to power **Panen Mania** e-commerc
 
     ```
     PORT=5000
-    DATABASE_URL=<PostgreSQL_connection_string>
+    DATABASE_URL=<Prisma_PostgreSQL_connection_string>
     REDIS_URL=<Redis_connection_string>
     SESSION_SECRET=<secret_session_key>
     CLIENT_URL=<client_application_url>

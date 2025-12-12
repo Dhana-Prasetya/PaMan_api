@@ -2,8 +2,7 @@ const redis = require("redis");
 
 // Create and export a Redis client for caching
 const redisClient = redis.createClient({
-	host: process.env.REDIS_URL,
-	port: 6379,
+	url: process.env.REDIS_URL, // Redis server cloud url
 	legacyMode: false, // Use modern async/await API
 });
 

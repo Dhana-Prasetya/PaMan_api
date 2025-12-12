@@ -23,9 +23,8 @@ if (envStage === "prod") {
 }
 
 const redisClient = redis.createClient({
-	host: process.env.REDIS_URL,
-	port: 6379,
-	legacyMode: true,
+	url: process.env.REDIS_URL, // Redis server cloud url
+	legacyMode: true, // Use legacy mode for compatibility with connect-redis
 });
 
 redisClient.connect().catch(console.error);

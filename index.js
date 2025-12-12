@@ -23,7 +23,7 @@ if (envStage === "prod") {
 }
 
 const redisClient = redis.createClient({
-	host: "localhost",
+	host: process.env.REDIS_URL,
 	port: 6379,
 	legacyMode: true,
 });
@@ -36,7 +36,7 @@ app.use(
 	session({
 		name: process.env.REDIS_SESSION_ID, // Name of the session ID cookie to set in the browser
 		store: redisStore, // Tell Express to use Redis for session storage
-		secret: process.env.REDIS_KEY_JWT, // Used to sign the session ID cookie. CHANGE THIS.
+		secret: process.env.REDIS_UNIQUE_KEY, // Used to sign the session ID cookie. CHANGE THIS.
 		resave: false, // Prevents session from being saved back to the store if it was never modified
 		saveUninitialized: true, // Saves new sessions that have not been modified
 		cookie: {

@@ -1,18 +1,19 @@
 const redisClient = require("./redisClient.js");
 
-/**
- * Invalidate all product pagination cache entries
- * Call this after INSERT, UPDATE, or DELETE operations on products
- */
+// Invalidate all product pagination cache entries
 const invalidateProductPaginationCache = async () => {
 	try {
 		// Get all keys matching the pattern "products:pagination:*"
-		const keys = await redisClient.keys("products:pagination:*");
+		const productPaginationKeys = await redisClient.keys("page:limit:*"); // Not recommended for large scale project
+		const productDetailKeys = await redisClient.keys("id:page:limit:*");
 
-		if (keys.length > 0) {
+		if (productPaginationKeys.length > 0) {
 			// Delete all matching keys
-			await redisClient.del(keys);
-			console.log(`[Cache Invalidated] Deleted ${keys.length} cache entries`);
+			await redisClient.del(productPaginationKeys);
+		}
+		if (productDetailKeys.length > 0) {
+			// Delete all matching keys
+			await redisClient.del(productDetailKeys);
 		}
 	} catch (error) {
 		console.error("[Cache Invalidation Error]", error);

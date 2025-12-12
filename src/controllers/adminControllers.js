@@ -11,6 +11,9 @@ const {
 const paginationCheck = require("../helper/paginationCheck.js");
 const serialIdCheck = require("../helper/serial-id-check.js");
 const pagination = require("../helper/pagination.js");
+const {
+	invalidateProductPaginationCache,
+} = require("../helper/cacheInvalidation.js");
 
 const prisma = new PrismaClient();
 
@@ -655,6 +658,9 @@ const adminController = {
 					setTimeout: arrayTransactionTime,
 				}
 			);
+
+			// Invalidate product pagination cache (stock and sold properties) in Redis
+			await invalidateProductPaginationCache();
 
 			return commonHelper.response(
 				res,

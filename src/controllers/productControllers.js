@@ -42,24 +42,26 @@ const productController = {
 				return res.status(400).json({ paginationErrors });
 			}
 
+			// ------------------------ Input Validations ----------------------- //
+
+			// ------------------------ Caching ----------------------- //
+
 			// Create a cache key based on page and limit
-			const cacheKey = `products:pagination:${page}:${limit}`;
+			const cacheKey = `page:limit:${page}:${limit}`;
 
 			// Try to get from Redis cache
 			const cachedData = await redisClient.get(cacheKey);
 			if (cachedData) {
-				console.log(`[Cache HIT] ${cacheKey}`);
+				// If cache exists, return cached data
 				return commonHelper.response(
 					res,
-					JSON.parse(cachedData),
+					JSON.parse(cachedData), // Parse cached JSON string back to object
 					200,
-					"Getting all products Success (from cache)"
+					"Getting all products Success from cache !"
 				);
 			}
 
-			console.log(`[Cache MISS] ${cacheKey}`);
-
-			// ------------------------ Input Validations ----------------------- //
+			// ------------------------ Caching ----------------------- //
 
 			const { skip, total, totalPages } = await pagination({
 				page,
@@ -149,6 +151,25 @@ const productController = {
 
 			// ------------------------ Pagination logic ------------------------ //
 
+			// ------------------------ Caching ----------------------- //
+
+			// Create a cache key based on page and limit
+			const cacheKey = `id:page:limit:${id}:${page}:${limit}`;
+
+			// Try to get from Redis cache
+			const cachedData = await redisClient.get(cacheKey);
+			if (cachedData) {
+				// If cache exists, return cached data
+				return commonHelper.response(
+					res,
+					JSON.parse(cachedData), // Parse cached JSON string back to object
+					200,
+					"Getting all products Success from cache !"
+				);
+			}
+
+			// ------------------------ Caching ----------------------- //
+
 			const results = await prisma.products.findUnique({
 				where: { id: id },
 				select: {
@@ -186,17 +207,22 @@ const productController = {
 				return commonHelper.response(res, null, 404, "Product not found");
 			}
 
+			const payload = {
+				product: results,
+				reviews_pagination: {
+					totalReviews: total,
+					totalPages: totalPages,
+					currentPage: page,
+					limit: limit,
+				},
+			};
+
+			// Store in Redis cache with 1 hour expiration (3600 seconds)
+			await redisClient.setEx(cacheKey, 3600, JSON.stringify(payload));
+
 			return commonHelper.response(
 				res,
-				{
-					product: results,
-					reviews_pagination: {
-						totalReviews: total,
-						totalPages: totalPages,
-						currentPage: page,
-						limit: limit,
-					},
-				},
+				payload,
 				200,
 				"Product reviews fetched successfully!"
 			);
@@ -750,9 +776,6 @@ const productController = {
 						mode: "insensitive", // search to ignore case
 					},
 					// condition: stock must be greater than 0
-					stock: {
-						gt: 0, // 'gt' stands for Greater Than
-					},
 				},
 				select: {
 					id: true,
@@ -761,6 +784,7 @@ const productController = {
 					description: true,
 					price: true,
 					discounted_price: true,
+					stock: true,
 				},
 				skip,
 				take: limit,

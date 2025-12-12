@@ -55,7 +55,7 @@ redisClient.on("error", (err) => {
 
 const corsOptions = {
 	// CORS configuration options
-	origin: "*",
+	origin: process.env.CLIENT_URL || "*", // Allow requests from this origin
 	methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
 	preflightContinue: false,
 	optionsSuccessStatus: 204,

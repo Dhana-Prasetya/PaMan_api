@@ -1,6 +1,10 @@
 const commonHelper = require("../helper/common.js");
 const { cloudinary } = require("../middleware/cloudinary.js");
 const { PrismaClient, Prisma } = require("@prisma/client");
+const redisClient = require("../helper/redisClient.js");
+const {
+	invalidateProductPaginationCache,
+} = require("../helper/cacheInvalidation.js");
 const {
 	PAGINATION_CONSTRAINT,
 	PRODUCT_CONSTRAINT,
@@ -40,6 +44,25 @@ const productController = {
 
 			// ------------------------ Input Validations ----------------------- //
 
+			// ------------------------ Caching ----------------------- //
+
+			// Create a cache key based on page and limit
+			const cacheKey = `page:limit:${page}:${limit}`;
+
+			// Try to get from Redis cache
+			const cachedData = await redisClient.get(cacheKey);
+			if (cachedData) {
+				// If cache exists, return cached data
+				return commonHelper.response(
+					res,
+					JSON.parse(cachedData), // Parse cached JSON string back to object
+					200,
+					"Getting all products Success from cache !"
+				);
+			}
+
+			// ------------------------ Caching ----------------------- //
+
 			const { skip, total, totalPages } = await pagination({
 				page,
 				limit,
@@ -59,6 +82,9 @@ const productController = {
 				totalPages,
 				results,
 			};
+
+			// Store in Redis cache with 1 hour expiration (3600 seconds)
+			await redisClient.setEx(cacheKey, 3600, JSON.stringify(payload));
 
 			return commonHelper.response(
 				res,
@@ -125,6 +151,25 @@ const productController = {
 
 			// ------------------------ Pagination logic ------------------------ //
 
+			// ------------------------ Caching ----------------------- //
+
+			// Create a cache key based on page and limit
+			const cacheKey = `id:page:limit:${id}:${page}:${limit}`;
+
+			// Try to get from Redis cache
+			const cachedData = await redisClient.get(cacheKey);
+			if (cachedData) {
+				// If cache exists, return cached data
+				return commonHelper.response(
+					res,
+					JSON.parse(cachedData), // Parse cached JSON string back to object
+					200,
+					"Getting all products Success from cache !"
+				);
+			}
+
+			// ------------------------ Caching ----------------------- //
+
 			const results = await prisma.products.findUnique({
 				where: { id: id },
 				select: {
@@ -162,17 +207,22 @@ const productController = {
 				return commonHelper.response(res, null, 404, "Product not found");
 			}
 
+			const payload = {
+				product: results,
+				reviews_pagination: {
+					totalReviews: total,
+					totalPages: totalPages,
+					currentPage: page,
+					limit: limit,
+				},
+			};
+
+			// Store in Redis cache with 1 hour expiration (3600 seconds)
+			await redisClient.setEx(cacheKey, 3600, JSON.stringify(payload));
+
 			return commonHelper.response(
 				res,
-				{
-					product: results,
-					reviews_pagination: {
-						totalReviews: total,
-						totalPages: totalPages,
-						currentPage: page,
-						limit: limit,
-					},
-				},
+				payload,
 				200,
 				"Product reviews fetched successfully!"
 			);
@@ -298,6 +348,9 @@ const productController = {
 					setTimeout: 15000,
 				}
 			);
+
+			// Invalidate cache after successful product creation
+			await invalidateProductPaginationCache();
 
 			return commonHelper.response(
 				res,
@@ -464,6 +517,9 @@ const productController = {
 					setTimeout: 10000,
 				}
 			);
+
+			// Invalidate cache after successful product update
+			await invalidateProductPaginationCache();
 
 			return commonHelper.response(
 				// Return succeed response
@@ -651,6 +707,9 @@ const productController = {
 				}
 			);
 
+			// Invalidate cache after successful product deletion
+			await invalidateProductPaginationCache();
+
 			return commonHelper.response(
 				res,
 				productDeletion,
@@ -717,9 +776,6 @@ const productController = {
 						mode: "insensitive", // search to ignore case
 					},
 					// condition: stock must be greater than 0
-					stock: {
-						gt: 0, // 'gt' stands for Greater Than
-					},
 				},
 				select: {
 					id: true,
@@ -728,6 +784,7 @@ const productController = {
 					description: true,
 					price: true,
 					discounted_price: true,
+					stock: true,
 				},
 				skip,
 				take: limit,

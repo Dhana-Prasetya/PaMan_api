@@ -8,7 +8,7 @@ This project is a robust backend API designed to power **Panen Mania** e-commerc
 
 # Disclaimer
 
-This project was built on CommonJS, therefore more
+This project was **built on CommonJS**, therefore it might not compatible with some latest version of package.
 
 ## 🚀 Key Features
 

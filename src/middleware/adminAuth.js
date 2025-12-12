@@ -1,34 +1,30 @@
 const jwt = require("jsonwebtoken");
 const createError = require("http-errors");
 const { ADMIN_CONSTRAINT } = require("../config/inputConstraint");
-const { PrismaClient } = require("@prisma/client");
-const prisma = new PrismaClient();
+const redisClient = require("../helper/redisClient");
 
 const adminAuth = async (req, res, next) => {
 	try {
 		let token;
 		if (req.headers.authorization) {
 			token = req.headers.authorization.split(" ")[1];
+
+			req.token = token; // Extract the token for ttl calculation
+
 			let decoded = jwt.verify(token, process.env.SECRET_KEY_JWT);
 
 			if (decoded.role !== ADMIN_CONSTRAINT.ADMIN_ROLE) {
 				return next(new createError(401, "Not Authorized !"));
 			}
 
-			// Fetch the temp_token from DB and compare it to the provided token
-			const adminTokenInDb = await prisma.admin.findUnique({
-				where: { id: decoded.id },
-				select: { temporary_token: true },
-				relationLoadStrategy: "join",
-			});
+			const blacklistJti = `revoked:${decoded.jti}`; // Unique cache key using jti
 
-			if (!adminTokenInDb) {
-				return next(new createError(401, "Invalid token"));
-			}
+			const cachedToken = await redisClient.get(blacklistJti); // Check if token is in blacklist
 
-			if (token !== adminTokenInDb.temporary_token) {
+			if (cachedToken) {
+				// If token is found in blacklist, deny access
 				return next(
-					new createError(401, "Token has been revoked. Please login again.")
+					new createError(401, "Session has been revoked. Please login again.")
 				);
 			}
 

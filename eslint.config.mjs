@@ -7,6 +7,9 @@ export default defineConfig([
 		ignores: ["prisma/**"],
 	},
 	{
+		ignorePatterns: ["test/"], // Ignore test case folders
+	},
+	{
 		files: ["**/*.{js,mjs,cjs}"],
 		plugins: { js },
 		extends: ["js/recommended"],

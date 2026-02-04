@@ -850,7 +850,7 @@ const productController = {
 
 			// ------------------------ Input Validations ----------------------- //
 
-			let sortResults = null;
+			let results = null;
 
 			const { skip, total, totalPages } = await pagination({
 				page,
@@ -860,7 +860,7 @@ const productController = {
 
 			if (PRODUCT_CONSTRAINT.CATEGORY_ENUM.includes(sort)) {
 				// If sort is a valid category of products
-				sortResults = await prisma.products.findMany({
+				results = await prisma.products.findMany({
 					where: {
 						category: sort,
 					},
@@ -869,14 +869,14 @@ const productController = {
 					orderBy: { id: "asc" },
 				});
 			} else if (sort === PRODUCT_CONSTRAINT.IN_STOCK) {
-				sortResults = await prisma.products.findMany({
+				results = await prisma.products.findMany({
 					where: {
 						stock: { gt: 0 },
 					},
 					orderBy: { id: "asc" },
 				});
 			} else if (sort === PRODUCT_CONSTRAINT.OUT_OF_STOCK) {
-				sortResults = await prisma.products.findMany({
+				results = await prisma.products.findMany({
 					where: {
 						stock: { lt: 1 },
 					},
@@ -891,7 +891,7 @@ const productController = {
 				);
 			}
 
-			const emptyData = Object.keys(sortResults); // Check if the result is empty
+			const emptyData = Object.keys(results); // Check if the result is empty
 
 			if (emptyData.length === 0) {
 				return commonHelper.response(

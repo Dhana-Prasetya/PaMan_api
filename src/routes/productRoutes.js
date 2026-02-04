@@ -7,7 +7,7 @@ const { upload } = require("../middleware/upload.js");
 router.get("/", productController.GetProductsPagination);
 router.get("/search", productController.SearchProductByNamePaginated);
 router.post("/", adminAuth, upload, productController.InsertProduct); // Integrating cloudinary upload middleware
-router.get("/category", adminAuth, productController.AdminSortedProducts);
+router.get("/category", productController.SortedProducts);
 
 // Id route need to be at the end to avoid conflict with other routes
 router.get("/:id", productController.GetDetailProduct);
@@ -16,7 +16,7 @@ router.patch(
 	"/image/:id",
 	adminAuth,
 	upload,
-	productController.UpdateProductImage
+	productController.UpdateProductImage,
 );
 router.delete("/:id", adminAuth, productController.DeleteProduct);
 

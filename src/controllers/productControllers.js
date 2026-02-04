@@ -57,7 +57,7 @@ const productController = {
 					res,
 					JSON.parse(cachedData), // Parse cached JSON string back to object
 					200,
-					"Getting all products Success from cache !"
+					"Getting all products Success from cache !",
 				);
 			}
 
@@ -90,7 +90,7 @@ const productController = {
 				res,
 				payload,
 				200,
-				"Getting all products Success"
+				"Getting all products Success",
 			);
 		} catch (error) {
 			console.error(`\n${error}\n`);
@@ -98,7 +98,7 @@ const productController = {
 				res,
 				null,
 				500,
-				"Failed to get all products"
+				"Failed to get all products",
 			);
 		}
 	},
@@ -117,7 +117,7 @@ const productController = {
 					res,
 					null,
 					400,
-					"Product ID is required !"
+					"Product ID is required !",
 				);
 			}
 
@@ -164,7 +164,7 @@ const productController = {
 					res,
 					JSON.parse(cachedData), // Parse cached JSON string back to object
 					200,
-					"Getting all products Success from cache !"
+					"Getting all products Success from cache !",
 				);
 			}
 
@@ -224,7 +224,7 @@ const productController = {
 				res,
 				payload,
 				200,
-				"Product reviews fetched successfully!"
+				"Product reviews fetched successfully!",
 			);
 		} catch (error) {
 			console.error(`\n${error}\n`);
@@ -232,7 +232,7 @@ const productController = {
 				res,
 				null,
 				500,
-				"Failed to get product by id"
+				"Failed to get product by id",
 			);
 		}
 	},
@@ -328,7 +328,7 @@ const productController = {
 							//  Custom folder and public_id
 							public_id: customPublicId,
 							folder: PRODUCT_CONSTRAINT.DEFAULT_IMAGE_FOLDER,
-						}
+						},
 					);
 					productPhotoURL = productImageConfig.secure_url; // Get uploaded image URL
 
@@ -346,7 +346,7 @@ const productController = {
 				{
 					isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
 					setTimeout: 15000,
-				}
+				},
 			);
 
 			// Invalidate cache after successful product creation
@@ -356,7 +356,7 @@ const productController = {
 				res,
 				insertProductTransaction,
 				201,
-				"Product successfully created"
+				"Product successfully created",
 			);
 		} catch (error) {
 			if (error.message === "DUPLICATE_PRODUCT_NAME") {
@@ -364,7 +364,7 @@ const productController = {
 					res,
 					null,
 					400,
-					"Product with the same name already exist !"
+					"Product with the same name already exist !",
 				);
 			}
 
@@ -398,7 +398,7 @@ const productController = {
 					res,
 					null,
 					400,
-					"Product ID is required !"
+					"Product ID is required !",
 				);
 			}
 
@@ -515,7 +515,7 @@ const productController = {
 				{
 					isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
 					setTimeout: 10000,
-				}
+				},
 			);
 
 			// Invalidate cache after successful product update
@@ -526,7 +526,7 @@ const productController = {
 				res,
 				updateProductTransaction, // Use the data returned from the transaction
 				200,
-				"Product successfully updated"
+				"Product successfully updated",
 			);
 		} catch (error) {
 			if (error.message === "SAME_NAME_PRODUCT_FOUND") {
@@ -534,7 +534,7 @@ const productController = {
 					res,
 					null,
 					409,
-					"Product with the same name already exist !"
+					"Product with the same name already exist !",
 				);
 			} else if (error.code === "P2025") {
 				// Prisma record not found error code
@@ -542,7 +542,7 @@ const productController = {
 					res,
 					null,
 					404,
-					"Product not found, failed to update product"
+					"Product not found, failed to update product",
 				);
 			} else {
 				console.error(`\n${error}\n`);
@@ -550,7 +550,7 @@ const productController = {
 					res,
 					null,
 					500,
-					"Failed to update product"
+					"Failed to update product",
 				);
 			}
 		}
@@ -568,7 +568,7 @@ const productController = {
 					res,
 					null,
 					400,
-					"Product ID is required !"
+					"Product ID is required !",
 				);
 			}
 
@@ -598,7 +598,7 @@ const productController = {
 					}
 
 					const cloudinaryPublicId = getCloudinaryPublicId(
-						selectedProduct.photo_url
+						selectedProduct.photo_url,
 					); // Extract public ID from URL
 
 					const updatedImage = await cloudinary.uploader.upload(req.file.path, {
@@ -624,14 +624,14 @@ const productController = {
 				{
 					isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
 					setTimeout: 12000,
-				}
+				},
 			);
 
 			return commonHelper.response(
 				res,
 				updatingProductImage,
 				200,
-				"Product successfully updated"
+				"Product successfully updated",
 			);
 		} catch (error) {
 			if (error.message === "PRODUCT_NOT_FOUND") {
@@ -656,7 +656,7 @@ const productController = {
 					res,
 					null,
 					400,
-					"Product ID is required !"
+					"Product ID is required !",
 				);
 			}
 
@@ -704,7 +704,7 @@ const productController = {
 				{
 					isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
 					setTimeout: 12000,
-				}
+				},
 			);
 
 			// Invalidate cache after successful product deletion
@@ -714,7 +714,7 @@ const productController = {
 				res,
 				productDeletion,
 				200,
-				"Product successfully deleted"
+				"Product successfully deleted",
 			);
 		} catch (error) {
 			if (error.message === "PRODUCT_NOT_FOUND") {
@@ -725,7 +725,7 @@ const productController = {
 					res,
 					null,
 					400,
-					"Cannot delete a product that has been ordered by user!"
+					"Cannot delete a product that has been ordered by user!",
 				);
 			}
 			console.error(`\n${error}\n`);
@@ -803,7 +803,7 @@ const productController = {
 				res,
 				payload,
 				200,
-				"Product search successful"
+				"Product search successful",
 			);
 		} catch (error) {
 			console.error(`\n${error}\n`);
@@ -811,7 +811,7 @@ const productController = {
 		}
 	},
 
-	AdminSortedProducts: async (req, res) => {
+	SortedProducts: async (req, res) => {
 		try {
 			const isEmpty = await prisma.products.count(); // If no products in database, return 404
 			if (isEmpty < 1) {
@@ -833,7 +833,7 @@ const productController = {
 					res,
 					null,
 					400,
-					"Sort parameter is required and must contain letters ! Available sort options: 'beras', 'buah', 'sayur', 'in-stock' or 'out-of-stock'."
+					"Sort parameter is required and must contain letters ! Available sort options: 'beras', 'buah', 'sayur', 'in-stock' or 'out-of-stock'.",
 				);
 			}
 
@@ -850,7 +850,7 @@ const productController = {
 
 			// ------------------------ Input Validations ----------------------- //
 
-			let sortResults = null;
+			let results = null;
 
 			const { skip, total, totalPages } = await pagination({
 				page,
@@ -860,7 +860,7 @@ const productController = {
 
 			if (PRODUCT_CONSTRAINT.CATEGORY_ENUM.includes(sort)) {
 				// If sort is a valid category of products
-				sortResults = await prisma.products.findMany({
+				results = await prisma.products.findMany({
 					where: {
 						category: sort,
 					},
@@ -869,14 +869,14 @@ const productController = {
 					orderBy: { id: "asc" },
 				});
 			} else if (sort === PRODUCT_CONSTRAINT.IN_STOCK) {
-				sortResults = await prisma.products.findMany({
+				results = await prisma.products.findMany({
 					where: {
 						stock: { gt: 0 },
 					},
 					orderBy: { id: "asc" },
 				});
 			} else if (sort === PRODUCT_CONSTRAINT.OUT_OF_STOCK) {
-				sortResults = await prisma.products.findMany({
+				results = await prisma.products.findMany({
 					where: {
 						stock: { lt: 1 },
 					},
@@ -887,18 +887,18 @@ const productController = {
 					res,
 					null,
 					400,
-					"Invalid sort option ! Available sort options: 'beras', 'buah', 'sayur', 'in-stock' or 'out-of-stock'."
+					"Invalid sort option ! Available sort options: 'beras', 'buah', 'sayur', 'in-stock' or 'out-of-stock'.",
 				);
 			}
 
-			const emptyData = Object.keys(sortResults); // Check if the result is empty
+			const emptyData = Object.keys(results); // Check if the result is empty
 
 			if (emptyData.length === 0) {
 				return commonHelper.response(
 					res,
 					null,
 					200,
-					`No products found in category '${sort}' !`
+					`No products found in category '${sort}' !`,
 				);
 			}
 
@@ -907,22 +907,22 @@ const productController = {
 				limit,
 				total,
 				totalPages,
-				sortResults,
+				results,
 			};
 
-			if (sortResults !== null) {
+			if (results !== null) {
 				return commonHelper.response(
 					res,
 					payload,
 					200,
-					`Products sorted by '${sort}' status !`
+					`Products sorted by '${sort}' status !`,
 				);
 			} else {
 				return commonHelper.response(
 					res,
 					null,
 					400,
-					"Invalid sort option ! Available sort options: 'beras', 'buah', 'sayur', 'in-stock' or 'out-of-stock'."
+					"Invalid sort option ! Available sort options: 'beras', 'buah', 'sayur', 'in-stock' or 'out-of-stock'.",
 				);
 			}
 		} catch (error) {

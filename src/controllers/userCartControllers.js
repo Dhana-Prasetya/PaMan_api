@@ -41,7 +41,7 @@ const userCartControllers = {
 				res,
 				getUserCart,
 				200,
-				`User cart retrieved successfully. If the result is empty, the cart for the corresponding user has no items.`
+				`User cart retrieved successfully. If the result is empty, the cart for the corresponding user has no items.`,
 			);
 		} catch (error) {
 			console.error(error);
@@ -96,7 +96,7 @@ const userCartControllers = {
 					res,
 					null,
 					400,
-					"Insufficient product stock"
+					"Insufficient product stock",
 				);
 			}
 
@@ -122,7 +122,7 @@ const userCartControllers = {
 
 					const existingItem = cart.carts_items.find(
 						// Check if product already exists in cart
-						(item) => item.product_id === id
+						(item) => item.product_id === id,
 					);
 
 					if (existingItem) {
@@ -155,14 +155,14 @@ const userCartControllers = {
 				{
 					isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead,
 					setTimeout: 15000,
-				}
+				},
 			);
 
 			return commonHelper.response(
 				res,
 				addProductToCartTransaction,
 				201,
-				"Product added to cart successfully !"
+				"Product added to cart successfully !",
 			);
 		} catch (error) {
 			console.error(error);
@@ -197,7 +197,7 @@ const userCartControllers = {
 					res,
 					null,
 					400,
-					"Quantity field to decrease is required !"
+					"Quantity field to decrease is required !",
 				);
 			}
 
@@ -264,14 +264,14 @@ const userCartControllers = {
 					{
 						isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead,
 						setTimeout: 15000,
-					}
+					},
 				);
 
 			return commonHelper.response(
 				res,
 				decreaseProductQuantityFromCartTransaction,
 				200,
-				"Product quantity decreased successfully !"
+				"Product quantity decreased successfully !",
 			);
 		} catch (error) {
 			if (error.message === "CART_NOT_FOUND") {
@@ -282,7 +282,7 @@ const userCartControllers = {
 					res,
 					null,
 					404,
-					"Product not found in cart !"
+					"Product not found in cart !",
 				);
 			}
 			console.error(error);
@@ -299,7 +299,7 @@ const userCartControllers = {
 					res,
 					null,
 					400,
-					"product_id must be a non-empty array"
+					"product_id must be a non-empty array",
 				);
 			}
 
@@ -322,7 +322,7 @@ const userCartControllers = {
 					res,
 					null,
 					404,
-					"No matching products found in cart to delete"
+					"No matching products found in cart to delete",
 				);
 			}
 
@@ -330,7 +330,7 @@ const userCartControllers = {
 				res,
 				deleteResult,
 				200,
-				"Product removed from cart successfully !"
+				"Product removed from cart successfully !",
 			);
 		} catch (error) {
 			console.error(error);
@@ -345,7 +345,7 @@ const userCartControllers = {
 					res,
 					null,
 					400,
-					"Request body is missing !"
+					"Request body is missing !",
 				);
 			}
 			let { address_id, payment_method, product_id } = req.body;
@@ -360,7 +360,7 @@ const userCartControllers = {
 					res,
 					null,
 					400,
-					"Address ID, payment method, and selected items are required!"
+					"Address ID, payment method, and selected items are required!",
 				);
 			}
 
@@ -383,7 +383,7 @@ const userCartControllers = {
 					res,
 					null,
 					404,
-					"Address not found for the user."
+					"Address not found for the user.",
 				);
 			}
 
@@ -422,7 +422,7 @@ const userCartControllers = {
 				// Check if product exists in the DB or if stock is insufficient
 				if (!product || product.stock < item.quantity) {
 					throw new Error(
-						`INSUFFICIENT_STOCK_${product?.name || item.product_id}`
+						`INSUFFICIENT_STOCK_${product?.name || item.product_id}`,
 					);
 				}
 			}
@@ -439,6 +439,7 @@ const userCartControllers = {
 
 					let totalAmount = 0;
 					const orderItemsData = [];
+					const updateItemsData = [];
 
 					for (const item of cartItems) {
 						const product = productMap.get(item.product_id);
@@ -449,17 +450,15 @@ const userCartControllers = {
 
 						orderItemsData.push({
 							product_id: product.id,
-							quantity: orderQuantity,
+							quantity: product.stock - orderQuantity,
 							price_at_order: price,
 						});
 
 						// Deduct Stock (Critical operation inside the transaction)
-						await tx.products.update({
-							where: { id: product.id },
-							data: {
-								stock: { decrement: orderQuantity },
-								sold: { increment: orderQuantity },
-							},
+						updateItemsData.push({
+							product_id: product.id,
+							stock: orderQuantity,
+							sold: orderQuantity,
 						});
 					}
 
@@ -480,6 +479,19 @@ const userCartControllers = {
 							order_id: newOrder.id,
 						})),
 					});
+
+					// Update Product Stock and Sold Counts (Batch Update)
+					const updatePromises = updateItemsData.map((item) => {
+						return tx.products.update({
+							where: { id: item.product_id, stock: { gte: item.stock } },
+							data: {
+								stock: { decrement: item.stock },
+								sold: { increment: item.sold },
+							},
+						});
+					});
+
+					await Promise.all(updatePromises);
 
 					// Create Payment Record (COD example)
 					const finalPaymentAmount =
@@ -510,7 +522,7 @@ const userCartControllers = {
 				{
 					isolationLevel: "Serializable",
 					timeout: transactionTime,
-				}
+				},
 			);
 
 			// Invalidate product pagination cache (stock and sold properties) in Redis
@@ -520,7 +532,7 @@ const userCartControllers = {
 				res,
 				checkoutTransaction,
 				201,
-				"Checkout successful!"
+				"Checkout successful!",
 			);
 		} catch (error) {
 			if (error.message === "SELECTED_ITEMS_NOT_FOUND_IN_CART") {
@@ -528,7 +540,7 @@ const userCartControllers = {
 					res,
 					null,
 					404,
-					"Selected items not found in cart."
+					"Selected items not found in cart.",
 				);
 			}
 			if (error.message.startsWith("INSUFFICIENT_STOCK_")) {
@@ -537,7 +549,15 @@ const userCartControllers = {
 					res,
 					null,
 					400,
-					`Insufficient stock for product: ${productName}`
+					`Insufficient stock for product: ${productName}`,
+				);
+			}
+			if (error.code === "P2025") {
+				return commonHelper.response(
+					res,
+					null,
+					400,
+					"One of the items are sold out.",
 				);
 			}
 			return commonHelper.response(res, null, 500, "Internal server error");

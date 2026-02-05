@@ -20,6 +20,8 @@ export default defineConfig([
 		rules: {
 			"no-unused-vars": "warn",
 			semi: ["warn", "always"],
+			"no-undef": "error",
+			"no-explicit-any": "error",
 		},
 	},
 ]);

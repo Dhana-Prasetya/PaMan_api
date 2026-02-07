@@ -76,7 +76,7 @@ const adminController = {
 					res,
 					null,
 					401,
-					"Invalid password or email !"
+					"Invalid password or email !",
 				);
 			}
 
@@ -87,11 +87,9 @@ const adminController = {
 					res,
 					null,
 					401,
-					"Invalid password or email !"
+					"Invalid password or email !",
 				);
 			}
-
-			// ------------------------ Input Validations ----------------------- //
 
 			delete dataInDb.password; // Delete user password for confidentiality
 			delete req.body.password;
@@ -122,14 +120,14 @@ const adminController = {
 					res,
 					null,
 					403,
-					"User not authenticated !"
+					"User not authenticated !",
 				);
 			}
 
 			const blacklistToken = await redisClient.set(
 				`revoked:${req.admin.jti}`, // Blacklist cache key
 				remainingTokenLife, // Redis TTL in seconds
-				JSON.stringify(req.admin)
+				JSON.stringify(req.admin),
 			);
 
 			if (!blacklistToken) {
@@ -137,14 +135,14 @@ const adminController = {
 					res,
 					null,
 					403,
-					"User not authenticated !"
+					"User not authenticated !",
 				);
 			}
 			return commonHelper.response(
 				res,
 				null,
 				200,
-				"Logout success, please delete admin token from browser local storage !"
+				"Logout success, please delete admin token from browser local storage !",
 			);
 		} catch (error) {
 			console.error(`\n${error}\n`);
@@ -161,6 +159,8 @@ const adminController = {
 			} = req.query;
 
 			sort = sort.toLowerCase(); // Convert sort to lowercase for uniformity
+			page = Number(page); // Convert to number
+			limit = Number(limit);
 
 			// ------------------------ Input Validations ----------------------- //
 
@@ -169,19 +169,8 @@ const adminController = {
 					res,
 					null,
 					400,
-					"Sort parameter is invalid and must contain letters ! The default query sort are 'all', while specific sort options are 'user', 'admin'."
+					"Sort parameter is invalid and must contain letters ! The default query sort are 'all', while specific sort options are 'user', 'admin'.",
 				);
-			}
-
-			page = Number(page);
-			limit = Number(limit);
-
-			let paginationErrors = {};
-			paginationErrors = paginationCheck(page, limit);
-
-			if (Object.keys(paginationErrors).length > 0) {
-				// If there is any error, return the errors
-				return res.status(400).json({ paginationErrors });
 			}
 
 			// ------------------------ Input Validations ----------------------- //
@@ -189,20 +178,12 @@ const adminController = {
 			let userResults = null;
 			let adminResults = null;
 
-			let skip = null;
-			let total = null;
-			let totalPages = null;
-
 			let payload = null;
 
 			if (sort === "all") {
-				// ------------------------ Pagination Logic ----------------------- //
-
-				skip = (page - 1) * limit;
-				total = (await prisma.users.count()) + (await prisma.admin.count());
-				totalPages = Math.ceil(total / limit);
-
-				// ------------------------ Pagination Logic ----------------------- //
+				const { skip, total, totalPages } =
+					(await pagination({ page, limit, table: "users" })) +
+					(await pagination({ page, limit, table: "admin" }));
 
 				userResults = await prisma.users.findMany({
 					select: {
@@ -244,11 +225,11 @@ const adminController = {
 					combinedList,
 				};
 			} else if (sort === "user") {
-				// ------------------------ Pagination Logic ----------------------- //
-				skip = (page - 1) * limit;
-				total = await prisma.users.count();
-				totalPages = Math.ceil(total / limit);
-				// ------------------------ Pagination Logic ----------------------- //
+				const { skip, total, totalPages } = await pagination({
+					page,
+					limit,
+					table: "users",
+				});
 				userResults = await prisma.users.findMany({
 					select: {
 						username: true,
@@ -271,11 +252,11 @@ const adminController = {
 					userResults,
 				};
 			} else if (sort === "admin") {
-				// ------------------------ Pagination Logic ----------------------- //
-				skip = (page - 1) * limit;
-				total = await prisma.admin.count();
-				totalPages = Math.ceil(total / limit);
-				// ------------------------ Pagination Logic ----------------------- //
+				const { skip, total, totalPages } = await pagination({
+					page,
+					limit,
+					table: "admin",
+				});
 				adminResults = await prisma.admin.findMany({
 					select: {
 						username: true,
@@ -302,7 +283,7 @@ const adminController = {
 					res,
 					null,
 					400,
-					"Invalid sort option ! Available sort options: 'all', 'user' or 'admin'."
+					"Invalid sort option ! Available sort options: 'all', 'user' or 'admin'.",
 				);
 			}
 
@@ -310,7 +291,7 @@ const adminController = {
 				res,
 				payload,
 				200,
-				"List of users fetched !"
+				"List of users fetched !",
 			);
 		} catch (error) {
 			console.error(`\n${error}\n`);
@@ -361,14 +342,14 @@ const adminController = {
 				{
 					isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead,
 					setTimeout: 10000,
-				}
+				},
 			);
 
 			return commonHelper.response(
 				res,
 				getTop3ProductsAndCategoryTransaction,
 				200,
-				"Top 3 products and categories fetched successfully !"
+				"Top 3 products and categories fetched successfully !",
 			);
 		} catch (error) {
 			console.error(`\n${error}\n`);
@@ -383,20 +364,8 @@ const adminController = {
 				limit = PAGINATION_CONSTRAINT.DEFAULT_ITEMS_PER_PAGE,
 			} = req.query;
 
-			// ------------------------ Input Validations ----------------------- //
-
 			page = Number(page);
 			limit = Number(limit);
-
-			let paginationErrors = {};
-			paginationErrors = paginationCheck(page, limit);
-
-			if (Object.keys(paginationErrors).length > 0) {
-				// If there is any error, return the errors
-				return res.status(400).json({ paginationErrors });
-			}
-
-			// ------------------------ Input Validations ----------------------- //
 
 			// ------------------------ Pagination Logic ----------------------- //
 
@@ -435,7 +404,7 @@ const adminController = {
 				res,
 				payload,
 				200,
-				"List of paginated user orders fetched !"
+				"List of paginated user orders fetched !",
 			);
 		} catch (error) {
 			console.error(`\n${error}\n`);
@@ -497,7 +466,7 @@ const adminController = {
 				res,
 				getUserOrdersDetail,
 				200,
-				"Detail of user orders fetched !"
+				"Detail of user orders fetched !",
 			);
 		} catch (error) {
 			if (error.code === "P2025") {
@@ -518,7 +487,7 @@ const adminController = {
 					res,
 					null,
 					400,
-					"Updates array is required!"
+					"Updates array is required!",
 				);
 			}
 
@@ -531,15 +500,17 @@ const adminController = {
 
 					for (const update of updates) {
 						const [orderIdStr, status] = update;
-						const orderId = Number(orderIdStr);
+						let orderId = Number(orderIdStr);
 
 						// Per-item Validation
+						const validId = serialIdCheck(orderId);
+
 						if (
-							isNaN(orderId) ||
+							validId !== true ||
 							!ORDER_CONSTRAINT.STATUS_ENUM.includes(status)
 						) {
 							throw new Error(
-								`Invalid data: ID ${orderIdStr} or Status ${status}. Avaiable statuses are: 'Dikemas', 'Dikirim', 'Diterima','Selesai'`
+								`Invalid data: ID ${orderIdStr} or Status ${status}. Avaiable statuses are: 'Dikemas', 'Dikirim', 'Diterima','Selesai'`,
 							);
 						}
 
@@ -575,14 +546,14 @@ const adminController = {
 				{
 					isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead,
 					setTimeout: arrayTransactionTime,
-				}
+				},
 			);
 
 			return commonHelper.response(
 				res,
 				results,
 				200,
-				"All order statuses updated successfully!"
+				"All order statuses updated successfully!",
 			);
 		} catch (error) {
 			if (error.code === "P2025") {
@@ -590,7 +561,7 @@ const adminController = {
 					res,
 					null,
 					404,
-					"One or more order IDs were not found!"
+					"One or more order IDs were not found!",
 				);
 			}
 			if (error.message === "ALREADY_COMPLETED") {
@@ -598,7 +569,7 @@ const adminController = {
 					res,
 					null,
 					403,
-					"One of the id have been completed, cannot update completed order status !"
+					"One of the id have been completed, cannot update completed order status !",
 				);
 			}
 			console.error(error);
@@ -616,7 +587,7 @@ const adminController = {
 					res,
 					null,
 					400,
-					"Updates array is required!"
+					"Updates array is required!",
 				);
 			}
 
@@ -670,7 +641,7 @@ const adminController = {
 				{
 					isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead,
 					setTimeout: arrayTransactionTime,
-				}
+				},
 			);
 
 			// Invalidate product pagination cache (stock and sold properties) in Redis
@@ -680,7 +651,7 @@ const adminController = {
 				res,
 				results,
 				200,
-				"All selected orders deleted successfully!"
+				"All selected orders deleted successfully!",
 			);
 		} catch (error) {
 			if (error.code === "P2025") {
@@ -688,7 +659,7 @@ const adminController = {
 					res,
 					null,
 					404,
-					"One or more order IDs were not found!"
+					"One or more order IDs were not found!",
 				);
 			}
 			console.error(error);

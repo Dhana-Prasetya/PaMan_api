@@ -1,10 +1,10 @@
 {
   "name": "paman-api",
   "version": "1.0.0",
-  "description": "",
+  "description": "An development branch of Paman API",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "jest",
     "server": "node index.js",
     "dev": "nodemon index.js",
     "pull-from-db": "npx prisma db pull",
@@ -12,13 +12,17 @@
     "usfdb": "npx prisma db pull && npx prisma generate",
     "prisma-setup": "npm i prisma --save-dev && npx prisma init && npm i @prisma/client",
     "lint": "eslint",
-    "start": "node index.js",
-    "postinstall": "npx prisma db pull && npx prisma generate"
+    "start": "node index.js"
+  },
+  "jest": {
+    "verbose": true,
+    "clearMocks": true,
+    "bail": true
   },
   "author": "Dhana",
   "license": "ISC",
   "dependencies": {
-    "@prisma/client": "^6.19.0",
+    "@prisma/client": "^6.19.2",
     "bcryptjs": "^3.0.2",
     "cloudinary": "^2.8.0",
     "connect-redis": "^9.0.0",
@@ -41,9 +45,10 @@
     "eslint": "^9.39.1",
     "file-type": "^21.1.1",
     "globals": "^16.5.0",
+    "jest": "^30.2.0",
     "morgan": "^1.10.1",
     "nodemon": "^3.1.10",
     "prettier": "^3.7.1",
-    "prisma": "^6.19.0"
+    "prisma": "^6.19.2"
   }
 }

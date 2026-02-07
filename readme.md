@@ -47,7 +47,10 @@ This project was **built on CommonJS**, therefore it might not compatible with s
 - Node.js (v16 or higher)
 - npm or yarn
 - PostgreSQL database
-- Redis server (deployed)
+  <<<<<<< HEAD
+- # Redis server (deployed)
+- Redis server (localhost)
+  > > > > > > > dev
 - Cloudinary account
 - Environment variables configured in a `.env` file (see `.env.example` if available)
 

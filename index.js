@@ -43,7 +43,7 @@ app.use(
 			httpOnly: true, // Prevents client-side JS from reading the cookie
 			maxAge: 1000 * 60 * 60 * 24, // 24 hours
 		},
-	})
+	}),
 );
 
 redisClient.on("error", (err) => {
@@ -87,7 +87,7 @@ morgan.token("local", () => {
 });
 
 app.use(
-	morgan('\n:local :ip ":method :url" :status :response-time ms - :user-agent')
+	morgan('\n:local :ip ":method :url" :status :response-time ms - :user-agent'),
 );
 
 // ---------------------------------------- Helmet, JSON Parse, Malformed JSON handling ----------------------------------------

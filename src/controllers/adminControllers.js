@@ -8,7 +8,6 @@ const {
 	PAGINATION_CONSTRAINT,
 	ORDER_CONSTRAINT,
 } = require("../config/inputConstraint.js");
-const paginationCheck = require("../helper/paginationCheck.js");
 const serialIdCheck = require("../helper/serial-id-check.js");
 const pagination = require("../helper/pagination.js");
 const {
@@ -76,7 +75,7 @@ const adminController = {
 					res,
 					null,
 					401,
-					"Invalid password or email !"
+					"Invalid password or email !",
 				);
 			}
 
@@ -87,11 +86,9 @@ const adminController = {
 					res,
 					null,
 					401,
-					"Invalid password or email !"
+					"Invalid password or email !",
 				);
 			}
-
-			// ------------------------ Input Validations ----------------------- //
 
 			delete dataInDb.password; // Delete user password for confidentiality
 			delete req.body.password;
@@ -122,14 +119,14 @@ const adminController = {
 					res,
 					null,
 					403,
-					"User not authenticated !"
+					"User not authenticated !",
 				);
 			}
 
 			const blacklistToken = await redisClient.set(
 				`revoked:${req.admin.jti}`, // Blacklist cache key
 				remainingTokenLife, // Redis TTL in seconds
-				JSON.stringify(req.admin)
+				JSON.stringify(req.admin),
 			);
 
 			if (!blacklistToken) {
@@ -137,14 +134,14 @@ const adminController = {
 					res,
 					null,
 					403,
-					"User not authenticated !"
+					"User not authenticated !",
 				);
 			}
 			return commonHelper.response(
 				res,
 				null,
 				200,
-				"Logout success, please delete admin token from browser local storage !"
+				"Logout success, please delete admin token from browser local storage !",
 			);
 		} catch (error) {
 			console.error(`\n${error}\n`);
@@ -161,6 +158,8 @@ const adminController = {
 			} = req.query;
 
 			sort = sort.toLowerCase(); // Convert sort to lowercase for uniformity
+			page = Number(page); // Convert to number
+			limit = Number(limit);
 
 			// ------------------------ Input Validations ----------------------- //
 
@@ -169,19 +168,8 @@ const adminController = {
 					res,
 					null,
 					400,
-					"Sort parameter is invalid and must contain letters ! The default query sort are 'all', while specific sort options are 'user', 'admin'."
+					"Sort parameter is invalid and must contain letters ! The default query sort are 'all', while specific sort options are 'user', 'admin'.",
 				);
-			}
-
-			page = Number(page);
-			limit = Number(limit);
-
-			let paginationErrors = {};
-			paginationErrors = paginationCheck(page, limit);
-
-			if (Object.keys(paginationErrors).length > 0) {
-				// If there is any error, return the errors
-				return res.status(400).json({ paginationErrors });
 			}
 
 			// ------------------------ Input Validations ----------------------- //
@@ -189,20 +177,12 @@ const adminController = {
 			let userResults = null;
 			let adminResults = null;
 
-			let skip = null;
-			let total = null;
-			let totalPages = null;
-
 			let payload = null;
 
 			if (sort === "all") {
-				// ------------------------ Pagination Logic ----------------------- //
-
-				skip = (page - 1) * limit;
-				total = (await prisma.users.count()) + (await prisma.admin.count());
-				totalPages = Math.ceil(total / limit);
-
-				// ------------------------ Pagination Logic ----------------------- //
+				const { skip, total, totalPages } =
+					(await pagination({ page, limit, table: "users" })) +
+					(await pagination({ page, limit, table: "admin" }));
 
 				userResults = await prisma.users.findMany({
 					select: {
@@ -244,11 +224,11 @@ const adminController = {
 					combinedList,
 				};
 			} else if (sort === "user") {
-				// ------------------------ Pagination Logic ----------------------- //
-				skip = (page - 1) * limit;
-				total = await prisma.users.count();
-				totalPages = Math.ceil(total / limit);
-				// ------------------------ Pagination Logic ----------------------- //
+				const { skip, total, totalPages } = await pagination({
+					page,
+					limit,
+					table: "users",
+				});
 				userResults = await prisma.users.findMany({
 					select: {
 						username: true,
@@ -271,11 +251,11 @@ const adminController = {
 					userResults,
 				};
 			} else if (sort === "admin") {
-				// ------------------------ Pagination Logic ----------------------- //
-				skip = (page - 1) * limit;
-				total = await prisma.admin.count();
-				totalPages = Math.ceil(total / limit);
-				// ------------------------ Pagination Logic ----------------------- //
+				const { skip, total, totalPages } = await pagination({
+					page,
+					limit,
+					table: "admin",
+				});
 				adminResults = await prisma.admin.findMany({
 					select: {
 						username: true,
@@ -302,7 +282,7 @@ const adminController = {
 					res,
 					null,
 					400,
-					"Invalid sort option ! Available sort options: 'all', 'user' or 'admin'."
+					"Invalid sort option ! Available sort options: 'all', 'user' or 'admin'.",
 				);
 			}
 
@@ -310,7 +290,7 @@ const adminController = {
 				res,
 				payload,
 				200,
-				"List of users fetched !"
+				"List of users fetched !",
 			);
 		} catch (error) {
 			console.error(`\n${error}\n`);
@@ -361,14 +341,14 @@ const adminController = {
 				{
 					isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead,
 					setTimeout: 10000,
-				}
+				},
 			);
 
 			return commonHelper.response(
 				res,
 				getTop3ProductsAndCategoryTransaction,
 				200,
-				"Top 3 products and categories fetched successfully !"
+				"Top 3 products and categories fetched successfully !",
 			);
 		} catch (error) {
 			console.error(`\n${error}\n`);
@@ -383,20 +363,8 @@ const adminController = {
 				limit = PAGINATION_CONSTRAINT.DEFAULT_ITEMS_PER_PAGE,
 			} = req.query;
 
-			// ------------------------ Input Validations ----------------------- //
-
 			page = Number(page);
 			limit = Number(limit);
-
-			let paginationErrors = {};
-			paginationErrors = paginationCheck(page, limit);
-
-			if (Object.keys(paginationErrors).length > 0) {
-				// If there is any error, return the errors
-				return res.status(400).json({ paginationErrors });
-			}
-
-			// ------------------------ Input Validations ----------------------- //
 
 			// ------------------------ Pagination Logic ----------------------- //
 
@@ -435,7 +403,7 @@ const adminController = {
 				res,
 				payload,
 				200,
-				"List of paginated user orders fetched !"
+				"List of paginated user orders fetched !",
 			);
 		} catch (error) {
 			console.error(`\n${error}\n`);
@@ -497,7 +465,7 @@ const adminController = {
 				res,
 				getUserOrdersDetail,
 				200,
-				"Detail of user orders fetched !"
+				"Detail of user orders fetched !",
 			);
 		} catch (error) {
 			if (error.code === "P2025") {
@@ -510,87 +478,103 @@ const adminController = {
 
 	ChangeMultipleUserOrdersStatus: async (req, res) => {
 		try {
-			const { updates } = req.body;
+			let { updates } = req.body;
 
-			// 1. Initial Validation
+			// Initial Validation
 			if (!Array.isArray(updates) || updates.length === 0) {
 				return commonHelper.response(
 					res,
 					null,
 					400,
-					"Updates array is required!"
+					"Updates array is required!",
 				);
 			}
 
-			const arrayTransactionTime = 10000 + 4000 * updates.length; // Estimate 10 + 4 seconds per update item
+			// Pre-process and Bulk Validate Data (Synchronous)
+			const updateMap = new Map();
+			const orderIds = updates.map(([idStr, status]) => {
+				const id = Number(idStr);
 
-			// 2. Execution via Transaction for Atomicity
+				// Basic validation
+				if (
+					serialIdCheck(id) !== true ||
+					!ORDER_CONSTRAINT.STATUS_ENUM.includes(status)
+				) {
+					throw new Error(`Invalid data: ID ${idStr} or Status ${status}`);
+				}
+				updateMap.set(id, status);
+				return id;
+			});
+
+			// Bulk Fetch existing statuses
+			const existingOrders = await prisma.orders.findMany({
+				where: { id: { in: orderIds } },
+				select: { id: true, order_status: true },
+			});
+
+			// Check if all IDs exist
+			if (existingOrders.length !== orderIds.length) {
+				throw new Error("NOT_ALL_FOUND");
+			}
+			// Check for any already completed orders
+			existingOrders.forEach((order) => {
+				if (order.order_status === "Selesai") {
+					throw new Error("ALREADY_COMPLETED");
+				}
+			});
+
+			// Execute Batch Transaction
+
+			const arrayTransactionTime = 7000 + 3000 * updates.length; // Estimate 7 + 3 seconds per update item
+
 			const results = await prisma.$transaction(
 				async (tx) => {
-					const updatedRecords = [];
+					const promises = [];
 
-					for (const update of updates) {
-						const [orderIdStr, status] = update;
-						const orderId = Number(orderIdStr);
-
-						// Per-item Validation
-						if (
-							isNaN(orderId) ||
-							!ORDER_CONSTRAINT.STATUS_ENUM.includes(status)
-						) {
-							throw new Error(
-								`Invalid data: ID ${orderIdStr} or Status ${status}. Avaiable statuses are: 'Dikemas', 'Dikirim', 'Diterima','Selesai'`
+					for (const [orderId, status] of updateMap) {
+						// Handle Payment logic if status is "Selesai"
+						if (status === "Selesai") {
+							promises.push(
+								tx.$executeRaw`
+									UPDATE "payments"
+									SET "amount_paid" = "amount_to_pay",
+										"payment_status" = 'Sukses'
+									WHERE "order_id" = ${orderId}
+								`,
 							);
 						}
 
-						const ifAlreadyCompleted = await tx.orders.findUnique({
-							where: { id: orderId },
-							select: { order_status: true },
-							relationLoadStrategy: "join",
-						});
-
-						if (ifAlreadyCompleted.order_status === "Selesai") {
-							throw new Error("ALREADY_COMPLETED");
-						}
-
-						if (status === "Selesai") {
-							const completePayment =
-								await tx.$executeRaw` -- Raw query to update payment status and amount_paid
-								UPDATE "payments" 
-								SET "amount_paid" = "amount_to_pay", 
-									"payment_status" = 'Sukses' 
-								WHERE "order_id" = ${orderId};
-							`;
-						}
-
-						const updated = await tx.orders.update({
-							where: { id: orderId },
-							data: { order_status: status },
-						});
-
-						updatedRecords.push(updated);
+						// Add the Order Update to the promise array
+						promises.push(
+							tx.orders.update({
+								where: { id: orderId },
+								data: { order_status: status },
+							}),
+						);
 					}
-					return updatedRecords;
+
+					// Run all updates in parallel within the transaction
+					return await Promise.all(promises);
 				},
 				{
 					isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead,
-					setTimeout: arrayTransactionTime,
-				}
+					timeout: arrayTransactionTime,
+				},
 			);
 
 			return commonHelper.response(
 				res,
 				results,
 				200,
-				"All order statuses updated successfully!"
+				"All order statuses updated successfully!",
 			);
 		} catch (error) {
-			if (error.code === "P2025") {
+			if (error.message === "NOT_ALL_FOUND") {
 				return commonHelper.response(
 					res,
 					null,
 					404,
-					"One or more order IDs were not found!"
+					"One or more order IDs were not found!",
 				);
 			}
 			if (error.message === "ALREADY_COMPLETED") {
@@ -598,7 +582,7 @@ const adminController = {
 					res,
 					null,
 					403,
-					"One of the id have been completed, cannot update completed order status !"
+					"One of the id have been completed, cannot update completed order status !",
 				);
 			}
 			console.error(error);
@@ -616,61 +600,81 @@ const adminController = {
 					res,
 					null,
 					400,
-					"Updates array is required!"
+					"Deletes array is required!",
 				);
 			}
 
-			const arrayTransactionTime = 10000 + 5000 * deletes.length; // Estimate 10 + 4 seconds per update item
+			const arrayTransactionTime = 7000 + 5000 * deletes.length; // Estimate 7 + 5 seconds per delete item
 
-			// 2. Execution via Transaction for Atomicity
+			const orderIds = deletes.map((id) => Number(id));
+
 			const results = await prisma.$transaction(
 				async (tx) => {
-					const updatedRecords = [];
-
-					for (const del of deletes) {
-						const [orderIdStr] = del;
-						const orderId = Number(orderIdStr);
-
-						// Deleting payments first due to foreign key restrict delete constraint
-						const deletingPayments = await tx.payments.deleteMany({
-							where: { order_id: orderId },
-						});
-
-						// Delete the Order and retrieve the items
-						const deletingOrder = await tx.orders.delete({
-							where: { id: orderId },
-							select: {
-								ordered_item: {
-									select: {
-										product_id: true,
-										quantity: true,
-									},
-								},
+					// 1. Fetch Orders and Their Items
+					const ordersWithItems = await tx.orders.findMany({
+						where: { id: { in: orderIds } },
+						select: {
+							id: true,
+							user_id: true,
+							order_date: true,
+							total_price: true,
+							order_status: true,
+							destination: true,
+							ordered_item: {
+								select: { product_id: true, quantity: true },
 							},
-						});
-
-						// Iterate and return stock for each item
-						const returnStock = deletingOrder.ordered_item.map(async (item) => {
-							return tx.products.update({
-								where: { id: item.product_id },
-								data: {
-									stock: { increment: item.quantity },
-									sold: { decrement: item.quantity },
-								},
-							});
-						});
-
-						// Wait for all stock updates to complete
-						await Promise.all(returnStock);
-
-						updatedRecords.push(deletingOrder);
+						},
+					});
+					// Cant delete if one of the orders is already completed
+					if (ordersWithItems.length !== orderIds.length) {
+						throw new Error("NOT_ALL_FOUND");
 					}
-					return updatedRecords;
+
+					// Cant delete if one of the orders is already completed
+					const completedOrder = ordersWithItems.find(
+						(o) => o.order_status === "Selesai",
+					);
+
+					if (completedOrder) {
+						throw new Error("ALREADY_COMPLETED");
+					}
+
+					// 2. Prepare Stock Return Promises
+					const stockPromises = [];
+					ordersWithItems.forEach((order) => {
+						order.ordered_item.forEach((item) => {
+							stockPromises.push(
+								tx.products.update({
+									where: { id: item.product_id },
+									data: {
+										stock: { increment: item.quantity },
+										sold: { decrement: item.quantity },
+									},
+								}),
+							);
+						});
+					});
+
+					// 3. Perform Bulk Deletions
+					// Delete selected payments
+					await tx.payments.deleteMany({
+						where: { order_id: { in: orderIds } },
+					});
+
+					// Delete selected orders
+					await tx.orders.deleteMany({
+						where: { id: { in: orderIds } },
+					});
+
+					// Execute selected stock updates in parallel
+					await Promise.all(stockPromises);
+
+					return ordersWithItems; // Return the data so the frontend knows what was deleted
 				},
 				{
 					isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead,
-					setTimeout: arrayTransactionTime,
-				}
+					timeout: arrayTransactionTime,
+				},
 			);
 
 			// Invalidate product pagination cache (stock and sold properties) in Redis
@@ -680,15 +684,23 @@ const adminController = {
 				res,
 				results,
 				200,
-				"All selected orders deleted successfully!"
+				"All selected orders deleted successfully!",
 			);
 		} catch (error) {
-			if (error.code === "P2025") {
+			if (error.message === "NOT_ALL_FOUND") {
 				return commonHelper.response(
 					res,
 					null,
 					404,
-					"One or more order IDs were not found!"
+					"One or more order IDs were not found!",
+				);
+			}
+			if (error.message === "ALREADY_COMPLETED") {
+				return commonHelper.response(
+					res,
+					null,
+					403,
+					"One of the id have been completed, cannot delete completed order status !",
 				);
 			}
 			console.error(error);

@@ -32,18 +32,6 @@ const productController = {
 			page = Number(page); // Convert to Number
 			limit = Number(limit);
 
-			// ------------------------ Input Validations ----------------------- //
-
-			let paginationErrors = {};
-			paginationErrors = paginationCheck(page, limit);
-
-			if (Object.keys(paginationErrors).length > 0) {
-				// If there is any error, return the errors
-				return res.status(400).json({ paginationErrors });
-			}
-
-			// ------------------------ Input Validations ----------------------- //
-
 			// ------------------------ Caching ----------------------- //
 
 			// Create a cache key based on page and limit
@@ -112,35 +100,10 @@ const productController = {
 				limit = PAGINATION_CONSTRAINT.DEFAULT_ITEMS_PER_PAGE,
 			} = req.query;
 
-			if (!id) {
-				return commonHelper.response(
-					res,
-					null,
-					400,
-					"Product ID is required !",
-				);
-			}
-
-			// ------------------------ Input Validations ----------------------- //
-
 			id = Number(id);
-
-			const idCheck = serialIdCheck(id);
-
-			if (idCheck !== true) {
-				// If there is any error, return the errors
-				return res.status(400).json({ idCheck });
-			}
-
 			page = Number(page);
 			limit = Number(limit);
 
-			const paginationErrors = paginationCheck(page, limit);
-			if (Object.keys(paginationErrors).length > 0) {
-				return commonHelper.response(res, null, 400, paginationErrors);
-			}
-
-			// ------------------------ Input Validations ----------------------- //
 			// ------------------------ Pagination logic ------------------------ //
 
 			const { skip, total, totalPages } = await pagination({
@@ -291,18 +254,6 @@ const productController = {
 
 			const insertProductTransaction = await prisma.$transaction(
 				async (tx) => {
-					const productDuplicationCheck = await tx.products.findUnique({
-						where: {
-							name: name,
-						},
-						relationLoadStrategy: "join",
-					});
-
-					if (productDuplicationCheck) {
-						// Check for duplicate product name
-						throw new Error("DUPLICATE_PRODUCT_NAME");
-					}
-
 					if (discounted_price) {
 						// If discounted_price provided, convert to Number
 						discounted_price = Number(discounted_price);
@@ -344,8 +295,8 @@ const productController = {
 					return results;
 				},
 				{
-					isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
-					setTimeout: 15000,
+					isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted,
+					setTimeout: 8000,
 				},
 			);
 
@@ -359,19 +310,19 @@ const productController = {
 				"Product successfully created",
 			);
 		} catch (error) {
-			if (error.message === "DUPLICATE_PRODUCT_NAME") {
+			if (productPhotoURL) {
+				// If product photo was uploaded before transaction failed, delete it
+				const cloudinaryPublicId = getCloudinaryPublicId(productPhotoURL);
+				await cloudinary.uploader.destroy(cloudinaryPublicId); // Delete uploaded image if transaction fails
+			}
+
+			if (error.code === "P2002") {
 				return commonHelper.response(
 					res,
 					null,
 					400,
 					"Product with the same name already exist !",
 				);
-			}
-
-			if (productPhotoURL) {
-				// If product photo was uploaded before transaction failed, delete it
-				const cloudinaryPublicId = getCloudinaryPublicId(productPhotoURL);
-				await cloudinary.uploader.destroy(cloudinaryPublicId); // Delete uploaded image if transaction fails
 			}
 
 			console.error(`\n${error}\n`);
@@ -390,24 +341,6 @@ const productController = {
 			}
 
 			const id = Number(req.params.id);
-
-			let productIdErrors = {};
-
-			if (!id) {
-				return commonHelper.response(
-					res,
-					null,
-					400,
-					"Product ID is required !",
-				);
-			}
-
-			productIdErrors = productIdCheck(id);
-
-			if (Object.keys(productIdErrors).length > 0) {
-				// If there is any error, return the errors
-				return res.status(400).json({ productIdErrors });
-			}
 
 			// ------------------------ Input Validations ----------------------- //
 
@@ -464,59 +397,31 @@ const productController = {
 
 			// ------------------------ Input Validations ----------------------- //
 
-			const updateProductTransaction = await prisma.$transaction(
-				async (tx) => {
-					if (name) {
-						// Check for name duplication only if name is provided
-						const productDuplicationCheck = await tx.products.findUnique({
-							// Check for duplicate name excluding current product
-							where: {
-								name: name,
-								NOT: { id: id }, // Exclude current product ID from duplication check
-							},
-							select: { id: true },
-							relationLoadStrategy: "join",
-						});
+			let dataToUpdate = {
+				name,
+				stock,
+				price,
+				description,
+				discounted_price,
+			};
 
-						if (productDuplicationCheck) {
-							// Check for duplicate product name
-							throw new Error("SAME_NAME_PRODUCT_FOUND");
-						}
-					}
+			// If these data provided, add to data object
+			if (name != null) dataToUpdate.name = name;
+			if (stock != null) dataToUpdate.stock = stock;
+			if (price != null) dataToUpdate.price = price;
+			if (description != null) dataToUpdate.description = description;
+			if (discounted_price != null)
+				dataToUpdate.discounted_price = discounted_price;
 
-					let dataToUpdate = {
-						name,
-						stock,
-						price,
-						description,
-						discounted_price,
-					};
+			dataToUpdate = removeNullProperties(dataToUpdate); // Remove null properties from data object
 
-					// If these data provided, add to data object
-					if (name != null) dataToUpdate.name = name;
-					if (stock != null) dataToUpdate.stock = stock;
-					if (price != null) dataToUpdate.price = price;
-					if (description != null) dataToUpdate.description = description;
-					if (discounted_price != null)
-						dataToUpdate.discounted_price = discounted_price;
-
-					dataToUpdate = removeNullProperties(dataToUpdate); // Remove null properties from data object
-
-					const updatedData = await tx.products.update({
-						// Update product in database with discounted_price
-						where: {
-							id: id,
-						},
-						data: dataToUpdate,
-					});
-
-					return updatedData;
+			const updatedData = await prisma.products.update({
+				// Update product in database with discounted_price
+				where: {
+					id: id,
 				},
-				{
-					isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
-					setTimeout: 10000,
-				},
-			);
+				data: dataToUpdate,
+			});
 
 			// Invalidate cache after successful product update
 			await invalidateProductPaginationCache();
@@ -524,12 +429,12 @@ const productController = {
 			return commonHelper.response(
 				// Return succeed response
 				res,
-				updateProductTransaction, // Use the data returned from the transaction
+				updatedData, // Use the data returned from the update
 				200,
 				"Product successfully updated",
 			);
 		} catch (error) {
-			if (error.message === "SAME_NAME_PRODUCT_FOUND") {
+			if (error.code === "P2002") {
 				return commonHelper.response(
 					res,
 					null,
@@ -558,30 +463,11 @@ const productController = {
 
 	UpdateProductImage: async (req, res) => {
 		// Update by id
+
 		try {
 			let id = req.params.id;
 
-			// ------------------------ ID Input Validations ----------------------- //
-
-			if (!id) {
-				return commonHelper.response(
-					res,
-					null,
-					400,
-					"Product ID is required !",
-				);
-			}
-
 			id = Number(id);
-
-			const idCheck = serialIdCheck(id);
-
-			if (idCheck !== true) {
-				// If there is any error, return the errors
-				return res.status(400).json({ idCheck });
-			}
-
-			// ------------------------ ID Input Validations ----------------------- //
 
 			const updatingProductImage = await prisma.$transaction(
 				async (tx) => {
@@ -606,23 +492,11 @@ const productController = {
 						overwrite: true,
 					});
 
-					const photo_url = updatedImage.secure_url; // Get the updated image URL
-
-					const results = await tx.products.update({
-						// Update product in database
-						where: {
-							id: id,
-						},
-						data: {
-							photo_url,
-						},
-					});
-
-					return results;
+					return selectedProduct;
 				},
 
 				{
-					isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+					isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted,
 					setTimeout: 12000,
 				},
 			);
@@ -643,31 +517,10 @@ const productController = {
 	},
 
 	DeleteProduct: async (req, res) => {
+		// Cannot delete product that has been ordered by user
 		// Delete product by id
 		try {
 			const id = Number(req.params.id);
-
-			// ------------------------ Input Validations ----------------------- //
-
-			let productIdErrors = {};
-
-			if (!id) {
-				return commonHelper.response(
-					res,
-					null,
-					400,
-					"Product ID is required !",
-				);
-			}
-
-			productIdErrors = productIdCheck(id);
-
-			if (Object.keys(productIdErrors).length > 0) {
-				// If there is any error, return the errors
-				return res.status(400).json({ productIdErrors });
-			}
-
-			// ------------------------ Input Validations ----------------------- //
 
 			const productDeletion = await prisma.$transaction(
 				async (tx) => {
@@ -681,10 +534,6 @@ const productController = {
 							},
 							relationLoadStrategy: "join",
 						});
-
-					if (dataInDb === null) {
-						throw new Error("PRODUCT_NOT_FOUND");
-					}
 
 					const results = await tx.products.delete({
 						// Delete product from database
@@ -717,7 +566,7 @@ const productController = {
 				"Product successfully deleted",
 			);
 		} catch (error) {
-			if (error.message === "PRODUCT_NOT_FOUND") {
+			if (error.code === "P2025") {
 				return commonHelper.response(res, null, 404, "Product not found");
 			}
 			if (error.code === "P2003") {
@@ -743,20 +592,9 @@ const productController = {
 
 			// ------------------------ Input Validations ----------------------- //
 
-			page = Number(page);
-			limit = Number(limit);
-
-			let paginationErrors = {};
-			paginationErrors = paginationCheck(page, limit);
-
 			if (!isNaN(product)) {
 				// Input validation (client always send as string)
 				paginationErrors.product = "Product name must contain letters !";
-			}
-
-			if (Object.keys(paginationErrors).length > 0) {
-				// If there is any error, return the errors
-				return res.status(400).json({ paginationErrors });
 			}
 
 			// ------------------------ Input Validations ----------------------- //
@@ -813,11 +651,6 @@ const productController = {
 
 	SortedProducts: async (req, res) => {
 		try {
-			const isEmpty = await prisma.products.count(); // If no products in database, return 404
-			if (isEmpty < 1) {
-				return commonHelper.response(res, null, 404, "No products in database");
-			}
-
 			let {
 				sort,
 				page = PAGINATION_CONSTRAINT.DEFAULT_PAGE_POSITION,
@@ -825,6 +658,8 @@ const productController = {
 			} = req.query;
 
 			sort = capitalizeFirstLetter(sort); // Capitalize input first letter to match enum values
+			page = Number(page);
+			limit = Number(limit);
 
 			// ------------------------ Input Validations ----------------------- //
 
@@ -835,17 +670,6 @@ const productController = {
 					400,
 					"Sort parameter is required and must contain letters ! Available sort options: 'beras', 'buah', 'sayur', 'in-stock' or 'out-of-stock'.",
 				);
-			}
-
-			page = Number(page);
-			limit = Number(limit);
-
-			let paginationErrors = {};
-			paginationErrors = paginationCheck(page, limit);
-
-			if (Object.keys(paginationErrors).length > 0) {
-				// If there is any error, return the errors
-				return res.status(400).json({ paginationErrors });
 			}
 
 			// ------------------------ Input Validations ----------------------- //
@@ -873,6 +697,8 @@ const productController = {
 					where: {
 						stock: { gt: 0 },
 					},
+					skip,
+					take: limit,
 					orderBy: { id: "asc" },
 				});
 			} else if (sort === PRODUCT_CONSTRAINT.OUT_OF_STOCK) {
@@ -880,6 +706,8 @@ const productController = {
 					where: {
 						stock: { lt: 1 },
 					},
+					skip,
+					take: limit,
 					orderBy: { id: "asc" },
 				});
 			} else {

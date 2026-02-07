@@ -544,12 +544,19 @@ const userCartControllers = {
 				);
 			}
 			if (error.message.startsWith("INSUFFICIENT_STOCK_")) {
-				const productName = error.message.replace("INSUFFICIENT_STOCK_", "");
 				return commonHelper.response(
 					res,
 					null,
 					400,
-					`Insufficient stock for product: ${productName}`,
+					"Insufficient stock for one of the products inside cart.",
+				);
+			}
+			if (error.code === "P2025") {
+				return commonHelper.response(
+					res,
+					null,
+					400,
+					"One of the items are not found.",
 				);
 			}
 			return commonHelper.response(res, null, 500, "Internal server error");

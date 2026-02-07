@@ -7,6 +7,9 @@ export default defineConfig([
 		ignores: ["prisma/**"],
 	},
 	{
+		ignorePatterns: ["test/"], // Ignore test case folders
+	},
+	{
 		files: ["**/*.{js,mjs,cjs}"],
 		plugins: { js },
 		extends: ["js/recommended"],
@@ -17,6 +20,8 @@ export default defineConfig([
 		rules: {
 			"no-unused-vars": "warn",
 			semi: ["warn", "always"],
+			"no-undef": "error",
+			"no-explicit-any": "error",
 		},
 	},
 ]);

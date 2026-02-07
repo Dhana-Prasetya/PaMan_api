@@ -463,7 +463,6 @@ const productController = {
 
 	UpdateProductImage: async (req, res) => {
 		// Update by id
-		let productPhotoURL = null;
 
 		try {
 			let id = req.params.id;
@@ -472,6 +471,18 @@ const productController = {
 
 			const updatingProductImage = await prisma.$transaction(
 				async (tx) => {
+					const selectedProduct = await prisma.products.findUnique({
+						where: {
+							id: id,
+						},
+						select: { photo_url: true },
+						relationLoadStrategy: "join",
+					});
+
+					if (selectedProduct === null) {
+						throw new Error("PRODUCT_NOT_FOUND");
+					}
+
 					const cloudinaryPublicId = getCloudinaryPublicId(
 						selectedProduct.photo_url,
 					); // Extract public ID from URL
@@ -481,23 +492,11 @@ const productController = {
 						overwrite: true,
 					});
 
-					productPhotoURL = updatedImage.secure_url; // Get the updated image URL
-
-					const results = await tx.products.update({
-						// Update product in database
-						where: {
-							id: id,
-						},
-						data: {
-							photo_url: productPhotoURL,
-						},
-					});
-
-					return results;
+					return selectedProduct;
 				},
 
 				{
-					isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+					isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted,
 					setTimeout: 12000,
 				},
 			);
@@ -509,12 +508,7 @@ const productController = {
 				"Product successfully updated",
 			);
 		} catch (error) {
-			if (productPhotoURL) {
-				// If product photo was uploaded before transaction failed, delete it
-				const cloudinaryPublicId = getCloudinaryPublicId(productPhotoURL);
-				await cloudinary.uploader.destroy(cloudinaryPublicId); // Delete uploaded image if transaction fails
-			}
-			if (error.code === "P2025") {
+			if (error.message === "PRODUCT_NOT_FOUND") {
 				return commonHelper.response(res, null, 404, "Product not found");
 			}
 			console.error(`\n${error}\n`);

@@ -557,7 +557,7 @@ const userCartControllers = {
 					res,
 					null,
 					400,
-					"One of the items are sold out.",
+					"One of the items are not found.",
 				);
 			}
 			return commonHelper.response(res, null, 500, "Internal server error");

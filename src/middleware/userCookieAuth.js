@@ -5,21 +5,35 @@ const redisClient = require("../helper/redisClient");
 
 const userCookieAuth = async (req, res, next) => {
 	try {
-		let token;
-		if (req.headers.authorization) {
-			token = req.headers.authorization.split(" ")[1]; // Extract the token from the "Bearer <token>" format
+		let accessToken;
+		if (req.cookies.accessToken) {
 
-			req.token = token; // Extract the token for ttl calculation
+			if(!req.cookies.accessToken) { // If access token cookie is missing or expired, deny access
+				return next(new createError(401, "Token not found."));
+			}
 
-			const decoded = jwt.verify(token, process.env.SECRET_KEY_JWT);
+			accessToken = req.cookies.accessToken; // Extract the access token from the cookies
+
+			const decoded = jwt.verify(accessToken, process.env.SECRET_KEY_JWT); // Verify the token and decode its payload
 
 			if (decoded.role !== USER_CONSTRAINT.USER_ROLE) {
 				return next(new createError(401, "Not Authorized !"));
 			}
 
+			const whitelistJti = `rt:${decoded.jti}`; // Unique cache key using jti
+
+			let cachedToken = await redisClient.get(whitelistJti); // Check if token is in whitelist
+
+			if (!cachedToken) {
+				// If token is not found in whitelist, deny access
+				return next(
+					new createError(401, "Session has been revoked. Please login again.")
+				);
+			}
+
 			const blacklistJti = `revoked:${decoded.jti}`; // Unique cache key using jti
 
-			const cachedToken = await redisClient.get(blacklistJti); // Check if token is in blacklist
+			cachedToken = await redisClient.get(blacklistJti); // Check if token is in blacklist
 
 			if (cachedToken) {
 				// If token is found in blacklist, deny access
@@ -33,17 +47,17 @@ const userCookieAuth = async (req, res, next) => {
 
 			return next();
 		} else {
-			return res.status(400).json({ message: "Server need token" });
+			return res.status(400).json({ message: "Server need active access token" });
 		}
 	} catch (error) {
 		console.log(error);
 
 		if (error && error.name === "JsonWebTokenError") {
-			return next(new createError(400, "Token invalid"));
+			return next(new createError(400, "Access token invalid"));
 		} else if (error && error.name === "TokenExpiredError") {
-			return next(new createError(400, "Token expired"));
+			return next(new createError(401, "Access token expired"));
 		} else {
-			return next(new createError(500, "Token not active"));
+			return next(new createError(500, "Access token not active"));
 		}
 	}
 };

@@ -3,7 +3,7 @@ const jwt = require("jsonwebtoken");
 const generateToken = (payload) => {
 	const verify0pts = {
 		// Standard syntax from jwt dependency
-		expiresIn: "1h",
+		expiresIn: "15m",
 		issuer: "PaMan_api",
 	};
 

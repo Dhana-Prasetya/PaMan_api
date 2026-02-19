@@ -12,6 +12,12 @@ const session = require("express-session");
 const redis = require("redis");
 const { RedisStore } = require("connect-redis");
 
+// ---------------------------------------- Cookie Handler ----------------------------------------
+
+const cookieParser = require('cookie-parser')
+
+app.use(cookieParser())
+
 // ---------------------------------------- Redis ----------------------------------------
 
 const envStage = process.env.ENV_STAGE || "dev"; // Get environment stage from .env file

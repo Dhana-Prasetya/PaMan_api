@@ -7,16 +7,18 @@ const userOrderControllers = require("../controllers/userOrderControllers.js");
 const userAdressControllers = require("../controllers/userAdressControllers.js");
 const userCartControllers = require("../controllers/userCartControllers.js");
 const userRatingProductsController = require("../controllers/userRatingProductsController.js");
+const userCookieAuth = require("../middleware/userCookieAuth.js");
 
 // Main user routes
 router.post("/login", userController.Login);
 router.post("/register", userController.Register);
-router.get("/my-profile", userAuth, userController.MyProfile);
+router.post("/refresh", userController.RefreshToken);
+router.get("/my-profile", userCookieAuth, userController.MyProfile); // TEST
 router.patch("/edit-profile-data", userAuth, userController.EditProfileData);
 router.patch("/edit-avatar", userAuth, upload, userController.EditAvatar);
 router.patch("/change-password", userAuth, userController.ChangePassword);
 router.delete("/delete-account", userAuth, userController.DeleteMyAccount);
-router.patch("/logout", userAuth, userController.Logout);
+router.patch("/logout", userCookieAuth, userController.Logout);
 
 // Address user routes
 router.post("/address", userAuth, userAdressControllers.AddUserAddress);

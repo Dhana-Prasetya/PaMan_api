@@ -14,7 +14,7 @@ model users {
   full_name      String           @db.VarChar(255)
   phone_number   String           @unique @db.VarChar(20)
   email          String           @unique @db.VarChar(255)
-  password       String           @db.VarChar(255)
+  password       String?          @db.VarChar(255)
   gender         gender_enum
   role           String           @db.VarChar(10)
   birthday       DateTime?        @db.Date

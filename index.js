@@ -64,17 +64,17 @@ app.use(cors(corsOptions)); // Use CORS middleware with specified options
 
 // ---------------------------------------- Rate limiting ----------------------------------------
 
-const apiCallLimiter = rateLimit({
-	windowMs: 3 * 1000, // 3 seconds
-	max: 1, // 1 request allowed per window
-	message: {
-		message: "Too many requests. Try again in 3 seconds.",
-	},
-	standardHeaders: true,
-	legacyHeaders: false,
-});
+// const apiCallLimiter = rateLimit({
+// 	windowMs: 3 * 1000, // 3 seconds
+// 	max: 1, // 1 request allowed per window
+// 	message: {
+// 		message: "Too many requests. Try again in 3 seconds.",
+// 	},
+// 	standardHeaders: true,
+// 	legacyHeaders: false,
+// });
 
-app.use(apiCallLimiter); // Apply rate limiting to all requests
+// app.use(apiCallLimiter); // Apply rate limiting to all requests
 
 // ---------------------------------------- Morgan http logging and ngrok proxy ----------------------------------------
 
@@ -117,11 +117,14 @@ const ProductRouter = require("./src/routes/productRoutes");
 const UserRouter = require("./src/routes/userRoutes");
 const AdminRouter = require("./src/routes/adminRoutes");
 const contactRouter = require("./src/routes/contactRoutes");
+const googleRouter = require("./src/routes/googleRoutes");
 
 app.use("/api/products", ProductRouter); // Prefix all routes/middleware in product.js in routes with '/products'
 app.use("/api/user", UserRouter); // Prefix all routes/middleware in user.js in routes with '/users'
 app.use("/api/admin", AdminRouter);
 app.use("/api/contact", contactRouter);
+app.use("/api/contact", contactRouter);
+app.use("/google-auth", googleRouter);
 
 app.use("/", (req, res) => {
 	// Basic route for root path

@@ -16,7 +16,7 @@ CREATE TABLE users (
 	full_name varchar(255) not null,
 	phone_number varchar(20) NOT NULL unique,
 	email VARCHAR(255) NOT NULL unique,
-	password VARCHAR(255) NOT NULL,
+	password VARCHAR(255),
 	gender gender_enum NOT NULL,
 	role VARCHAR(10) not null, -- Contain 'user' and 'admin' role
 	birthday date,

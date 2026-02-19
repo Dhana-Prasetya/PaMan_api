@@ -166,6 +166,15 @@ const userController = {
 				return commonHelper.response(res, null, 401, "Email not found !");
 			}
 
+			if(dataInDb.password === null){ // If password is null, it means the user registered using Google OAuth and does not have a conventional password
+				
+				const payload = {
+					redirectUrl: `http://localhost:${process.env.BACKEND_RUNNING_PORT}/google-auth`, // Send the Google OAuth authorization URL in the token payload
+				}
+
+				return commonHelper.response(res, payload, 200, "Please login with Google account with this URL !");
+			}
+
 			const isValidate = await bcrypt.compare(password, dataInDb.password); // Comparing body password with password from 'findEmail'
 			if (!isValidate) {
 				// Validating password and email
@@ -192,7 +201,7 @@ const userController = {
 
 			dataInDb.token = generateToken(payload); // Create token and add to dataInDb object
 
-			return commonHelper.response(res, dataInDb, 201, "Login success");
+			return commonHelper.response(res, dataInDb, 200, "Login success");
 		} catch (error) {
 			console.error(`\n${error}\n`);
 			return commonHelper.response(res, null, 500, "Internal server error");

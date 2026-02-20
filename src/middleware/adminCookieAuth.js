@@ -1,9 +1,9 @@
 const jwt = require("jsonwebtoken");
 const createError = require("http-errors");
-const { USER_CONSTRAINT } = require("../config/inputConstraint");
+const {ADMIN_CONSTRAINT } = require("../config/inputConstraint");
 const redisClient = require("../helper/redisClient");
 
-const userCookieAuth = async (req, res, next) => {
+const adminCookieAuth = async (req, res, next) => {
 	try {
 		let accessToken;
 		if (req.cookies.accessToken) {
@@ -16,7 +16,7 @@ const userCookieAuth = async (req, res, next) => {
 
 			const decoded = jwt.verify(accessToken, process.env.SECRET_KEY_JWT); // Verify the token and decode its payload
 
-			if (decoded.role !== USER_CONSTRAINT.USER_ROLE) {
+			if (decoded.role !== ADMIN_CONSTRAINT.ADMIN_ROLE) {
 				return next(new createError(401, "Not Authorized !"));
 			}
 
@@ -51,4 +51,4 @@ const userCookieAuth = async (req, res, next) => {
 	}
 };
 
-module.exports = userCookieAuth;
+module.exports = adminCookieAuth;

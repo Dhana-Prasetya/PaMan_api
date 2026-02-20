@@ -11,7 +11,6 @@ const removeNullProperties = require("../helper/removeNullProperties.js");
 const capitalizeFirstLetter = require("../helper/capitalizeFirstLetter.js");
 const { v4: uuidv4 } = require("uuid"); // For generating unique token identifiers
 const redisClient = require("../helper/redisClient.js");
-const getRemainingTokenLifetime = require("../helper/getRemainingTokenLifetime.js");
 const getRemainingCookieLifetime = require("../helper/getRemainingCookieLifetime.js");
 
 const saltRounds = 10; // Standard salt rounds for bcrypt
@@ -731,9 +730,9 @@ const userController = {
 	Logout: async (req, res, next) => {
 		try {
 
-			const refreshToken = req.cookies.token; // Request the remaining lifetime of the access token cookie
+			const accessToken = req.cookies.accessToken; // Request the remaining lifetime of the access token cookie
 
-			if (!refreshToken) {
+			if (!accessToken) {
 				return commonHelper.response(
 					res,
 					null,
@@ -741,6 +740,14 @@ const userController = {
 					"Token not found !"
 				);
 			}
+
+			const refreshTokenTTL = getRemainingCookieLifetime(accessToken); // Request the remaining lifetime of the refresh token cookie
+
+			const blacklistAccessToken = await redisClient.setEx(
+				`at:revoked-${req.user.jti}`, // Blacklist cache key
+				refreshTokenTTL,				
+				req.user.id.toString() // Store user ID for potential future use (e.g., token introspection)
+			);
 
 			const deleteRefreshToken = await redisClient.del(`rt:${req.user.jti}`); // Remove the refresh token from the whitelist
 

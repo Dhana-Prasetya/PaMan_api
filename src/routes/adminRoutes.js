@@ -1,34 +1,35 @@
 const express = require("express");
 const router = express.Router();
 const adminControllers = require("../controllers/adminControllers.js");
-const adminAuth = require("../middleware/adminAuth.js");
 const paginationValidation = require("../middleware/paginationValidation.js");
+const adminCookieAuth = require("../middleware/adminCookieAuth.js");
 
 router.post("/login", adminControllers.Login);
-router.patch("/logout", adminAuth, adminControllers.Logout);
+router.post("/refresh", adminControllers.RefreshToken);
+router.patch("/logout", adminCookieAuth, adminControllers.Logout);
 router.get(
 	"/user-list",
-	adminAuth,
+	adminCookieAuth,
 	paginationValidation,
 	adminControllers.ListOfEveryUserPaginated,
 );
 router.get(
 	"/top-products-categories",
-	adminAuth,
+	adminCookieAuth,
 	adminControllers.GetTop3ProductsAndCategory,
 );
 router.get(
 	"/orders",
-	adminAuth,
+	adminCookieAuth,
 	paginationValidation,
 	adminControllers.GetPaginatedUserOrders,
 );
-router.get("/orders/:id", adminAuth, adminControllers.GetUserOrderDetail);
+router.get("/orders/:id", adminCookieAuth, adminControllers.GetUserOrderDetail);
 router.patch(
 	"/orders",
-	adminAuth,
+	adminCookieAuth,
 	adminControllers.ChangeMultipleUserOrdersStatus,
 );
-router.delete("/orders", adminAuth, adminControllers.DeleteMultipleOrders);
+router.delete("/orders", adminCookieAuth, adminControllers.DeleteMultipleOrders);
 
 module.exports = router;

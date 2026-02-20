@@ -2,6 +2,10 @@
 
 An development (local deployment) of **Panen Mania API**
 
+# Major Change
+
+Implementing google oauth2 and access-refresh token auth
+
 # 🛍️ E-commerce Backend API
 
 This project is a robust backend API designed to power **Panen Mania** e-commerce platform. It provides a comprehensive set of endpoints for managing users, products, orders, and other essential e-commerce functionalities. The API prioritizes security, scalability, and maintainability, making it a solid foundation for building a thriving online store.

@@ -3,14 +3,14 @@ const jwt = require("jsonwebtoken");
 /**
  * Calculates the remaining lifetime of the JWT stored inside an HttpOnly cookie.
  * @param {Object} req - The Express request object
- * @param {string} cookieName - The name of your auth cookie (default: 'token')
+ * @param {string} cookieName - The name of your auth cookie (default: 'accessToken')
  * @returns {number} - Remaining seconds until the JWT inside the cookie expires
  */
-function getRemainingCookieLifetime(req, cookieName = 'token') {
+function getRemainingCookieLifetime(accessToken) {
     try {
         // 1. Get the token string from the cookies
         // Requires 'cookie-parser' to be active in your app
-        const token = req.cookies[cookieName];
+        const token = accessToken;
 
         if (!token) {
             return 0; // No cookie found, session is already "dead"

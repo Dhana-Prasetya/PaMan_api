@@ -1,7 +1,6 @@
 const express = require("express");
 const router = express.Router();
 const userController = require("../controllers/userControllers.js");
-const userAuth = require("../middleware/userAuth.js");
 const { upload } = require("../middleware/upload.js");
 const userOrderControllers = require("../controllers/userOrderControllers.js");
 const userAdressControllers = require("../controllers/userAdressControllers.js");
@@ -14,65 +13,65 @@ router.post("/login", userController.Login);
 router.post("/register", userController.Register);
 router.post("/refresh", userController.RefreshToken);
 router.get("/my-profile", userCookieAuth, userController.MyProfile); // TEST
-router.patch("/edit-profile-data", userAuth, userController.EditProfileData);
-router.patch("/edit-avatar", userAuth, upload, userController.EditAvatar);
-router.patch("/change-password", userAuth, userController.ChangePassword);
-router.delete("/delete-account", userAuth, userController.DeleteMyAccount);
+router.patch("/edit-profile-data", userCookieAuth, userController.EditProfileData);
+router.patch("/edit-avatar", userCookieAuth, upload, userController.EditAvatar);
+router.patch("/change-password", userCookieAuth, userController.ChangePassword);
+router.delete("/delete-account", userCookieAuth, userController.DeleteMyAccount);
 router.patch("/logout", userCookieAuth, userController.Logout);
 
 // Address user routes
-router.post("/address", userAuth, userAdressControllers.AddUserAddress);
-router.get("/address", userAuth, userAdressControllers.GetUserAddresses);
+router.post("/address", userCookieAuth, userAdressControllers.AddUserAddress);
+router.get("/address", userCookieAuth, userAdressControllers.GetUserAddresses);
 router.patch(
 	"/address-default/:id",
-	userAuth,
+	userCookieAuth,
 	userAdressControllers.SetDefaultUserAddresses
 );
 router.patch(
 	"/address-update/:id",
-	userAuth,
+	userCookieAuth,
 	userAdressControllers.UpdateUserAddresses
 );
 router.delete(
 	"/address/:id",
-	userAuth,
+	userCookieAuth,
 	userAdressControllers.DeleteUserAddresses
 );
 
 // Order user routes
-router.post("/order", userAuth, userOrderControllers.OrderProductDirectly);
-router.get("/order", userAuth, userOrderControllers.GetPaginatedMyOrders);
-router.get("/order/:id", userAuth, userOrderControllers.GetMyDetailOrder);
+router.post("/order", userCookieAuth, userOrderControllers.OrderProductDirectly);
+router.get("/order", userCookieAuth, userOrderControllers.GetPaginatedMyOrders);
+router.get("/order/:id", userCookieAuth, userOrderControllers.GetMyDetailOrder);
 
 // Rating user routes
 router.post(
 	"/rate-product/:id",
-	userAuth,
+	userCookieAuth,
 	userRatingProductsController.RateProduct
 );
 
 router.patch(
 	"/helpful/:id/:rate",
-	userAuth,
+	userCookieAuth,
 	userRatingProductsController.MarkHelpfulOrNot
 );
 
 // Cart user routes
-router.get("/cart", userAuth, userCartControllers.GetUserCart);
-router.post("/cart/:id", userAuth, userCartControllers.AddProductToCart);
+router.get("/cart", userCookieAuth, userCartControllers.GetUserCart);
+router.post("/cart/:id", userCookieAuth, userCartControllers.AddProductToCart);
 router.patch(
 	"/cart/:id",
-	userAuth,
+	userCookieAuth,
 	userCartControllers.DecreaseProductQuantityFromCart
 );
 router.delete(
 	"/cart",
-	userAuth,
+	userCookieAuth,
 	userCartControllers.RemoveMultipleProductFromCart
 );
 router.post(
 	"/cart-checkout",
-	userAuth,
+	userCookieAuth,
 	userCartControllers.CheckoutProductFromCart
 );
 

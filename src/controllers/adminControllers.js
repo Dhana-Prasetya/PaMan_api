@@ -15,7 +15,6 @@ const {
 } = require("../helper/cacheInvalidation.js");
 const { v4: uuidv4 } = require("uuid"); // For generating unique token identifiers
 const redisClient = require("../helper/redisClient.js");
-const getRemainingTokenLifetime = require("../helper/getRemainingTokenLifetime.js");
 
 const prisma = new PrismaClient();
 
@@ -101,7 +100,36 @@ const adminController = {
 				jti: uuidv4(), // Unique identifier for the token
 			};
 
-			dataInDb.token = generateToken(payload); // Create token and add to dataInDb object
+			const accessToken = generateToken(payload); // Create token
+
+			let stage = process.env.ENV_STAGE;
+			let secureStatus = null;
+
+			if(stage === "prod"){
+				secureStatus = true;
+			} else {
+				secureStatus = false;
+			}
+
+			res.cookie('accessToken', accessToken, { // Access token in HttpOnly cookie
+				httpOnly: true,     // Prevents JavaScript access (XSS protection)
+				secure: secureStatus, // CHANGE TO 'true' IN PRODUCTION (HTTPS) - Ensures cookie is only sent over secure connections
+				sameSite: 'strict', // Prevents CSRF
+				maxAge: 15 * 60 * 1000 // 15 minutes in milliseconds
+			});
+
+			res.cookie('refreshToken', payload.jti, { // Refresh token in HttpOnly cookie
+				httpOnly: true,     // Prevents JavaScript access (XSS protection)
+				secure: secureStatus, // CHANGE TO 'true' IN PRODUCTION (HTTPS) - Ensures cookie is only sent over secure connections
+				sameSite: 'strict', // Prevents CSRF
+				maxAge: 60 * 60 * 1000 * 24 * 7 // 1 week in milliseconds
+			});
+
+			const createRefreshToken = await redisClient.setEx(
+				`rt:${payload.jti}`, // Whitelist cache key
+				60 * 60 * 24 * 7, // Redis TTL in seconds (1 week)
+				dataInDb.id.toString() // Store user ID for potential future use (e.g., token introspection)
+			);
 
 			return commonHelper.response(res, dataInDb, 201, "Login success");
 		} catch (error) {
@@ -110,38 +138,117 @@ const adminController = {
 		}
 	},
 
-	Logout: async (req, res, next) => {
-		try {
-			const remainingTokenLife = getRemainingTokenLifetime(req.token);
+	RefreshToken: async (req, res) => {
+			try{
+	
+				const oldUserJti = `rt:${req.cookies.refreshToken}`; // Get jti from refresh token cookie and create whitelist cache key
+	
+				const cachedRefreshToken = await redisClient.get(oldUserJti); // Check if token is in whitelist
+	
+				if (!cachedRefreshToken) {
+					// If token is not found in whitelist, deny access
+					return commonHelper.response(res, null, 401, "Session has been revoked. Please login again.");
+				}
+	
+				const dataInDb = await prisma.admin.findUnique({
+					where:{
+						id: cachedRefreshToken, // Get user ID from whitelist cache value and find user in DB
+					}, select:{
+						id: true,
+						email: true,
+						role: true,
+					}
+				});
+	
+				if(!dataInDb){
+					return commonHelper.response(res, null, 401, "User not found.");
+				}
+	
+				const payload = { // Make new JWT payload
+					id: dataInDb.id,
+					email: dataInDb.email,
+					role: dataInDb.role,
+					jti: uuidv4(), // Unique identifier for the token
+				};
+	
+				const newAccessToken = generateToken(payload); // Create token
+	
+				let stage = process.env.ENV_STAGE;
+				let secureStatus = null;
+	
+				if(stage === "prod"){
+					secureStatus = true;
+				} else {
+					secureStatus = false;
+				}
+	
+				const deleteOldRefreshToken = await redisClient.del(oldUserJti); // Remove the old refresh token from the whitelist
+	
+				const createNewRefreshToken = await redisClient.setEx(
+					`rt:${payload.jti}`, // Whitelist cache key
+					60 * 60 * 24 * 7, // Redis TTL in seconds (1 week)
+					JSON.stringify(dataInDb.id) // Store user ID for potential future use (e.g., token introspection)
+				);
+	
+				res.cookie('refreshToken', payload.jti, { // New refresh token in HttpOnly cookie
+					httpOnly: true,     // Prevents JavaScript access (XSS protection)
+					secure: secureStatus, // CHANGE TO 'true' IN PRODUCTION (HTTPS) - Ensures cookie is only sent over secure connections
+					sameSite: 'strict', // Prevents CSRF
+					maxAge: 60 * 60 * 1000 * 24 * 7 // 1 week in milliseconds
+				});
+	
+				res.cookie('accessToken', newAccessToken, { // Access token in HttpOnly cookie
+					httpOnly: true,     // Prevents JavaScript access (XSS protection)
+					secure: secureStatus, // CHANGE TO 'true' IN PRODUCTION (HTTPS) - Ensures cookie is only sent over secure connections
+					sameSite: 'strict', // Prevents CSRF
+					maxAge: 15 * 60 * 1000 // 15 minutes in milliseconds
+				});
+	
+				return commonHelper.response(res, null, 200, "Access token refreshed successfully !");
+	
+			}catch(error){
+				console.error(`\n${error}\n`);
+				return commonHelper.response(res, null, 500, "Internal server error");
+			}
+		},
 
-			if (remainingTokenLife <= 0) {
+	Logout: async (req, res) => {
+		try {
+			const accessToken = req.cookies.accessToken; // Request the remaining lifetime of the access token cookie
+
+			if (!accessToken) {
 				return commonHelper.response(
 					res,
 					null,
 					403,
-					"User not authenticated !",
+					"Token not found !"
 				);
 			}
 
-			const blacklistToken = await redisClient.set(
-				`revoked:${req.admin.jti}`, // Blacklist cache key
-				remainingTokenLife, // Redis TTL in seconds
-				JSON.stringify(req.admin),
+			const refreshTokenTTL = getRemainingCookieLifetime(accessToken); // Request the remaining lifetime of the refresh token cookie
+
+			const blacklistAccessToken = await redisClient.setEx(
+				`at:revoked-${req.user.jti}`, // Blacklist cache key
+				refreshTokenTTL,				
+				req.user.id.toString() // Store user ID for potential future use (e.g., token introspection)
 			);
 
-			if (!blacklistToken) {
+			const deleteRefreshToken = await redisClient.del(`rt:${req.user.jti}`); // Remove the refresh token from the whitelist
+
+			if (!deleteRefreshToken) {
 				return commonHelper.response(
 					res,
 					null,
 					403,
-					"User not authenticated !",
+					"User not authenticated !"
 				);
 			}
+
 			return commonHelper.response(
 				res,
 				null,
 				200,
-				"Logout success, please delete admin token from browser local storage !",
+				"Logout success !"
 			);
 		} catch (error) {
 			console.error(`\n${error}\n`);

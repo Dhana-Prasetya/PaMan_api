@@ -70,17 +70,17 @@ app.use(cors(corsOptions)); // Use CORS middleware with specified options
 
 // ---------------------------------------- Rate limiting ----------------------------------------
 
-// const apiCallLimiter = rateLimit({
-// 	windowMs: 3 * 1000, // 3 seconds
-// 	max: 1, // 1 request allowed per window
-// 	message: {
-// 		message: "Too many requests. Try again in 3 seconds.",
-// 	},
-// 	standardHeaders: true,
-// 	legacyHeaders: false,
-// });
+const apiCallLimiter = rateLimit({
+	windowMs: 3 * 1000, // 3 seconds
+	max: 1, // 1 request allowed per window
+	message: {
+		message: "Too many requests. Try again in 3 seconds.",
+	},
+	standardHeaders: true,
+	legacyHeaders: false,
+});
 
-// app.use(apiCallLimiter); // Apply rate limiting to all requests
+app.use(apiCallLimiter); // Apply rate limiting to all requests
 
 // ---------------------------------------- Morgan http logging and ngrok proxy ----------------------------------------
 

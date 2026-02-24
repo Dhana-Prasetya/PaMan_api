@@ -7,16 +7,25 @@ const userAdressControllers = require("../controllers/userAdressControllers.js")
 const userCartControllers = require("../controllers/userCartControllers.js");
 const userRatingProductsController = require("../controllers/userRatingProductsController.js");
 const userCookieAuth = require("../middleware/userCookieAuth.js");
+const { loginRateLimiter } = require("../middleware/loginRateLimiter.js");
 
 // Main user routes
-router.post("/login", userController.Login);
+router.post("/login", loginRateLimiter, userController.Login);
 router.post("/register", userController.Register);
 router.post("/refresh", userController.RefreshToken);
 router.get("/my-profile", userCookieAuth, userController.MyProfile); // TEST
-router.patch("/edit-profile-data", userCookieAuth, userController.EditProfileData);
+router.patch(
+	"/edit-profile-data",
+	userCookieAuth,
+	userController.EditProfileData,
+);
 router.patch("/edit-avatar", userCookieAuth, upload, userController.EditAvatar);
 router.patch("/change-password", userCookieAuth, userController.ChangePassword);
-router.delete("/delete-account", userCookieAuth, userController.DeleteMyAccount);
+router.delete(
+	"/delete-account",
+	userCookieAuth,
+	userController.DeleteMyAccount,
+);
 router.patch("/logout", userCookieAuth, userController.Logout);
 
 // Address user routes
@@ -25,21 +34,25 @@ router.get("/address", userCookieAuth, userAdressControllers.GetUserAddresses);
 router.patch(
 	"/address-default/:id",
 	userCookieAuth,
-	userAdressControllers.SetDefaultUserAddresses
+	userAdressControllers.SetDefaultUserAddresses,
 );
 router.patch(
 	"/address-update/:id",
 	userCookieAuth,
-	userAdressControllers.UpdateUserAddresses
+	userAdressControllers.UpdateUserAddresses,
 );
 router.delete(
 	"/address/:id",
 	userCookieAuth,
-	userAdressControllers.DeleteUserAddresses
+	userAdressControllers.DeleteUserAddresses,
 );
 
 // Order user routes
-router.post("/order", userCookieAuth, userOrderControllers.OrderProductDirectly);
+router.post(
+	"/order",
+	userCookieAuth,
+	userOrderControllers.OrderProductDirectly,
+);
 router.get("/order", userCookieAuth, userOrderControllers.GetPaginatedMyOrders);
 router.get("/order/:id", userCookieAuth, userOrderControllers.GetMyDetailOrder);
 
@@ -47,13 +60,13 @@ router.get("/order/:id", userCookieAuth, userOrderControllers.GetMyDetailOrder);
 router.post(
 	"/rate-product/:id",
 	userCookieAuth,
-	userRatingProductsController.RateProduct
+	userRatingProductsController.RateProduct,
 );
 
 router.patch(
 	"/helpful/:id/:rate",
 	userCookieAuth,
-	userRatingProductsController.MarkHelpfulOrNot
+	userRatingProductsController.MarkHelpfulOrNot,
 );
 
 // Cart user routes
@@ -62,17 +75,17 @@ router.post("/cart/:id", userCookieAuth, userCartControllers.AddProductToCart);
 router.patch(
 	"/cart/:id",
 	userCookieAuth,
-	userCartControllers.DecreaseProductQuantityFromCart
+	userCartControllers.DecreaseProductQuantityFromCart,
 );
 router.delete(
 	"/cart",
 	userCookieAuth,
-	userCartControllers.RemoveMultipleProductFromCart
+	userCartControllers.RemoveMultipleProductFromCart,
 );
 router.post(
 	"/cart-checkout",
 	userCookieAuth,
-	userCartControllers.CheckoutProductFromCart
+	userCartControllers.CheckoutProductFromCart,
 );
 
 module.exports = router;

@@ -4,7 +4,8 @@ An development (local deployment) of **Panen Mania API**
 
 # Major Change
 
-Implementing google oauth2 and access-refresh token auth
+- Implementing google oauth2 and access-refresh token auth
+- Adding rate limiting for login attempt on both login route
 
 # 🛍️ E-commerce Backend API
 

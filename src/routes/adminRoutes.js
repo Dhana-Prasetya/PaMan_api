@@ -3,8 +3,9 @@ const router = express.Router();
 const adminControllers = require("../controllers/adminControllers.js");
 const paginationValidation = require("../middleware/paginationValidation.js");
 const adminCookieAuth = require("../middleware/adminCookieAuth.js");
+const { loginRateLimiter } = require("../middleware/loginRateLimiter.js");
 
-router.post("/login", adminControllers.Login);
+router.post("/login", loginRateLimiter, adminControllers.Login);
 router.post("/refresh", adminControllers.RefreshToken);
 router.patch("/logout", adminCookieAuth, adminControllers.Logout);
 router.get(
@@ -30,6 +31,10 @@ router.patch(
 	adminCookieAuth,
 	adminControllers.ChangeMultipleUserOrdersStatus,
 );
-router.delete("/orders", adminCookieAuth, adminControllers.DeleteMultipleOrders);
+router.delete(
+	"/orders",
+	adminCookieAuth,
+	adminControllers.DeleteMultipleOrders,
+);
 
 module.exports = router;

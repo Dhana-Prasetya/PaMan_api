@@ -1,6 +1,5 @@
 const express = require("express");
 const router = express.Router();
-const userController = require("../controllers/userControllers.js");
 const { upload } = require("../middleware/upload.js");
 const userOrderControllers = require("../controllers/userOrderControllers.js");
 const userAdressControllers = require("../controllers/userAdressControllers.js");
@@ -9,11 +8,23 @@ const userRatingProductsController = require("../controllers/userRatingProductsC
 const userCookieAuth = require("../middleware/userCookieAuth.js");
 const { loginRateLimiter } = require("../middleware/loginRateLimiter.js");
 
+// Injectable dependencies for user controllers (clean architecture)
+const RegisterUser = require("../domain/use_cases/RegisterUser.js");
+const UserRepository = require("../infrastructure/repositories/UserRepository.js");
+const PasswordService = require("../infrastructure/repositories/PasswordService.js");
+
+const userController = require("../controllers/userControllers.js")({
+	// Dependency Injection
+	registerUseCase: RegisterUser, // Function instance for use case
+	userRepository: new UserRepository(), // class instance for
+	passwordService: new PasswordService(),
+});
+
 // Main user routes
 router.post("/login", loginRateLimiter, userController.Login);
 router.post("/register", userController.Register);
 router.post("/refresh", userController.RefreshToken);
-router.get("/my-profile", userCookieAuth, userController.MyProfile); // TEST
+router.get("/my-profile", userCookieAuth, userController.MyProfile);
 router.patch(
 	"/edit-profile-data",
 	userCookieAuth,

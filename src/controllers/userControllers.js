@@ -16,102 +16,37 @@ const getRemainingCookieLifetime = require("../helper/getRemainingCookieLifetime
 const saltRounds = 10; // Standard salt rounds for bcrypt
 const prisma = new PrismaClient();
 
-const userController = {
+const UserController = ({
+	registerUseCase,
+	userRepository,
+	passwordService,
+} = {}) => ({
 	Register: async (req, res) => {
 		try {
-			if (!req.body) {
-				return res.status(400).json({ message: "Request body is missing !" });
-			}
-			let { full_name, phone_number, email, password, gender } = req.body;
-
-			// ------------------------ Input & Validations ----------------------- //
-
-			let errors = {}; // Object to hold every client errors
-
-			if (!full_name || !password || !email || !phone_number || !gender) {
-				// Check for empty fields
-				return res.status(400).json({ message: "All fields are required !" });
+			if (!registerUseCase || !userRepository || !passwordService) {
+				throw new Error("MISSING_DEPENDENCIES");
 			}
 
-			errors = userProfileInputCheck({
-				full_name,
-				email,
-				password,
-				phone_number,
-				gender,
-			});
+			// Input validation remains here (or in a middleware)
+			if (!req.body.email)
+				return res.status(400).json({ message: "Email required" });
 
-			if (Object.keys(errors).length > 0) {
-				// If there is any error, return the errors
-				return res.status(400).json({ errors });
-			}
+			const result = await registerUseCase(
+				// Call the 'RegisterUser' use case with injected dependencies
+				userRepository,
+				passwordService,
+				req.body, // user data from request body
+			);
 
-			// ------------------------ Input & Validations ----------------------- //
-
-			const salt = await bcrypt.genSalt(saltRounds);
-			const hashedPassword = await bcrypt.hash(password, salt);
-
-			let username = full_name.trim().split(/\s+/)[0]; // Get first word from fullname as username
-			username = username.toLowerCase(); // Normalize username to lowercase
-			username = capitalizeFirstLetter(username); // Capitalize first letter of username
-
-			let isUnique = false; // Must be outside the loop
-			let finalUsername = username; // To avoid mutating the original input
-
-			do {
-				// Loop until a unique username is found
-				const num = Math.floor(Math.random() * 100);
-				const formatted = String(num).padStart(2, "0");
-
-				// Combine the base username and the random number
-				const currentAttempt = (username + formatted).slice(
-					0,
-					USER_CONSTRAINT.MAX_USERNAME_LENGTH
-				);
-
-				const usernameExists = await prisma.users.findUnique({
-					where: { username: currentAttempt },
-					relationLoadStrategy: "join",
-				});
-
-				if (!usernameExists) {
-					finalUsername = currentAttempt;
-					isUnique = true;
-				}
-			} while (!isUnique);
-
-			let data = {
-				full_name,
-				username: finalUsername,
-				password: hashedPassword,
-				phone_number,
-				gender,
-				email: email.toLowerCase(), // Normalize email to lowercase
-				role: USER_CONSTRAINT.USER_ROLE, // 'user' as a role
-				avatar_url: USER_CONSTRAINT.DEFAULT_USER_AVATAR_URL, // Default avatar URL
-			};
-
-			const insertIntoDB = await prisma.users.create({
-				// Insert new user using prisma
-				data: data,
-			});
-
-			(delete data.password,
-				delete data.phone_number,
-				delete data.avatar_url,
-				delete data.gender); // Delete sensitive info from response
-
-			return commonHelper.response(res, data, 201, "Register success !");
+			return commonHelper.response(
+				res,
+				result.toPublicProfile(),
+				201,
+				"User registered successfully !",
+			);
 		} catch (error) {
-			if (error.code === "P2002") {
-				// Prisma unique constraint error code
-				return res.status(400).json({
-					message: "Email, username, or phone number is already registered !",
-				});
-			} else {
-				console.error(`\n${error}\n`);
-				return commonHelper.response(res, null, 500, "Internal server error");
-			}
+			console.error(`\n${error}\n`);
+			return commonHelper.response(res, null, 500, "Internal server error");
 		}
 	},
 
@@ -166,13 +101,19 @@ const userController = {
 				return commonHelper.response(res, null, 401, "Email not found !");
 			}
 
-			if(dataInDb.password === null){ // If password is null, it means the user registered using Google OAuth and does not have a conventional password
-				
+			if (dataInDb.password === null) {
+				// If password is null, it means the user registered using Google OAuth and does not have a conventional password
+
 				const payload = {
 					redirectUrl: `http://localhost:${process.env.BACKEND_RUNNING_PORT}/google-auth`, // Send the Google OAuth authorization URL in the token payload
-				}
+				};
 
-				return commonHelper.response(res, payload, 200, "Please login with Google account with this URL !");
+				return commonHelper.response(
+					res,
+					payload,
+					200,
+					"Please login with Google account with this URL !",
+				);
 			}
 
 			const isValidate = await bcrypt.compare(password, dataInDb.password); // Comparing body password with password from 'findEmail'
@@ -182,7 +123,7 @@ const userController = {
 					res,
 					null,
 					401,
-					"Invalid password or email !"
+					"Invalid password or email !",
 				);
 			}
 
@@ -203,34 +144,35 @@ const userController = {
 			let stage = process.env.ENV_STAGE;
 			let secureStatus = null;
 
-			if(stage === "prod"){
+			if (stage === "prod") {
 				secureStatus = true;
 			} else {
 				secureStatus = false;
 			}
 
-			res.cookie('accessToken', accessToken, { // Access token in HttpOnly cookie
-				httpOnly: true,     // Prevents JavaScript access (XSS protection)
+			res.cookie("accessToken", accessToken, {
+				// Access token in HttpOnly cookie
+				httpOnly: true, // Prevents JavaScript access (XSS protection)
 				secure: secureStatus, // CHANGE TO 'true' IN PRODUCTION (HTTPS) - Ensures cookie is only sent over secure connections
-				sameSite: 'strict', // Prevents CSRF
-				maxAge: 15 * 60 * 1000 // 15 minutes in milliseconds
+				sameSite: "strict", // Prevents CSRF
+				maxAge: 15 * 60 * 1000, // 15 minutes in milliseconds
 			});
 
-			res.cookie('refreshToken', payload.jti, { // Refresh token in HttpOnly cookie
-				httpOnly: true,     // Prevents JavaScript access (XSS protection)
+			res.cookie("refreshToken", payload.jti, {
+				// Refresh token in HttpOnly cookie
+				httpOnly: true, // Prevents JavaScript access (XSS protection)
 				secure: secureStatus, // CHANGE TO 'true' IN PRODUCTION (HTTPS) - Ensures cookie is only sent over secure connections
-				sameSite: 'strict', // Prevents CSRF
-				maxAge: 60 * 60 * 1000 * 24 * 7 // 1 week in milliseconds
+				sameSite: "strict", // Prevents CSRF
+				maxAge: 60 * 60 * 1000 * 24 * 7, // 1 week in milliseconds
 			});
 
 			const createRefreshToken = await redisClient.setEx(
 				`rt:${payload.jti}`, // Whitelist cache key
 				60 * 60 * 24 * 7, // Redis TTL in seconds (1 week)
-				dataInDb.id.toString() // Store user ID for potential future use (e.g., token introspection)
+				dataInDb.id.toString(), // Store user ID for potential future use (e.g., token introspection)
 			);
 
 			return commonHelper.response(res, dataInDb, 200, "Login success");
-
 		} catch (error) {
 			console.error(`\n${error}\n`);
 			return commonHelper.response(res, null, 500, "Internal server error");
@@ -238,32 +180,38 @@ const userController = {
 	},
 
 	RefreshToken: async (req, res) => {
-		try{
-
+		try {
 			const oldUserJti = `rt:${req.cookies.refreshToken}`; // Get jti from refresh token cookie and create whitelist cache key
 
 			const cachedRefreshToken = await redisClient.get(oldUserJti); // Check if token is in whitelist
 
 			if (!cachedRefreshToken) {
 				// If token is not found in whitelist, deny access
-				return commonHelper.response(res, null, 401, "Session has been revoked. Please login again.");
+				return commonHelper.response(
+					res,
+					null,
+					401,
+					"Session has been revoked. Please login again.",
+				);
 			}
 
 			const dataInDb = await prisma.users.findUnique({
-				where:{
+				where: {
 					id: cachedRefreshToken, // Get user ID from whitelist cache value and find user in DB
-				}, select:{
+				},
+				select: {
 					id: true,
 					email: true,
 					role: true,
-				}
+				},
 			});
 
-			if(!dataInDb){
+			if (!dataInDb) {
 				return commonHelper.response(res, null, 401, "User not found.");
 			}
 
-			const payload = { // Make new JWT payload
+			const payload = {
+				// Make new JWT payload
 				id: dataInDb.id,
 				email: dataInDb.email,
 				role: dataInDb.role,
@@ -275,7 +223,7 @@ const userController = {
 			let stage = process.env.ENV_STAGE;
 			let secureStatus = null;
 
-			if(stage === "prod"){
+			if (stage === "prod") {
 				secureStatus = true;
 			} else {
 				secureStatus = false;
@@ -286,26 +234,32 @@ const userController = {
 			const createNewRefreshToken = await redisClient.setEx(
 				`rt:${payload.jti}`, // Whitelist cache key
 				60 * 60 * 24 * 7, // Redis TTL in seconds (1 week)
-				JSON.stringify(dataInDb.id) // Store user ID for potential future use (e.g., token introspection)
+				JSON.stringify(dataInDb.id), // Store user ID for potential future use (e.g., token introspection)
 			);
 
-			res.cookie('refreshToken', payload.jti, { // New refresh token in HttpOnly cookie
-				httpOnly: true,     // Prevents JavaScript access (XSS protection)
+			res.cookie("refreshToken", payload.jti, {
+				// New refresh token in HttpOnly cookie
+				httpOnly: true, // Prevents JavaScript access (XSS protection)
 				secure: secureStatus, // CHANGE TO 'true' IN PRODUCTION (HTTPS) - Ensures cookie is only sent over secure connections
-				sameSite: 'strict', // Prevents CSRF
-				maxAge: 60 * 60 * 1000 * 24 * 7 // 1 week in milliseconds
+				sameSite: "strict", // Prevents CSRF
+				maxAge: 60 * 60 * 1000 * 24 * 7, // 1 week in milliseconds
 			});
 
-			res.cookie('accessToken', newAccessToken, { // Access token in HttpOnly cookie
-				httpOnly: true,     // Prevents JavaScript access (XSS protection)
+			res.cookie("accessToken", newAccessToken, {
+				// Access token in HttpOnly cookie
+				httpOnly: true, // Prevents JavaScript access (XSS protection)
 				secure: secureStatus, // CHANGE TO 'true' IN PRODUCTION (HTTPS) - Ensures cookie is only sent over secure connections
-				sameSite: 'strict', // Prevents CSRF
-				maxAge: 15 * 60 * 1000 // 15 minutes in milliseconds
+				sameSite: "strict", // Prevents CSRF
+				maxAge: 15 * 60 * 1000, // 15 minutes in milliseconds
 			});
 
-			return commonHelper.response(res, null, 200, "Access token refreshed successfully !");
-
-		}catch(error){
+			return commonHelper.response(
+				res,
+				null,
+				200,
+				"Access token refreshed successfully !",
+			);
+		} catch (error) {
 			console.error(`\n${error}\n`);
 			return commonHelper.response(res, null, 500, "Internal server error");
 		}
@@ -335,7 +289,7 @@ const userController = {
 					res,
 					null,
 					403,
-					"User not authenticated !"
+					"User not authenticated !",
 				);
 			}
 
@@ -343,7 +297,7 @@ const userController = {
 				res,
 				myProfile,
 				200,
-				"Get my profile success !"
+				"Get my profile success !",
 			);
 		} catch (error) {
 			console.error(`\n${error}\n`);
@@ -436,7 +390,7 @@ const userController = {
 						isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
 						setTimeout: 10000,
 					},
-				}
+				},
 			);
 
 			delete editProfileDb[0].password; // Remove sensitive data from response
@@ -446,7 +400,7 @@ const userController = {
 				res,
 				editProfileDb,
 				201,
-				"Edit profile success !"
+				"Edit profile success !",
 			);
 		} catch (error) {
 			if (error.code === "P2002") {
@@ -477,7 +431,7 @@ const userController = {
 					res,
 					null,
 					403,
-					"User not authenticated !"
+					"User not authenticated !",
 				);
 			}
 
@@ -486,7 +440,7 @@ const userController = {
 					res,
 					null,
 					400,
-					"Avatar file is required !"
+					"Avatar file is required !",
 				);
 			}
 
@@ -499,7 +453,7 @@ const userController = {
 					{
 						public_id: customPublicId,
 						folder: USER_CONSTRAINT.DEFAULT_IMAGE_FOLDER,
-					}
+					},
 				);
 
 				photo_url = updatingDefaultAvatar.secure_url; // Get the updated image URL
@@ -512,7 +466,7 @@ const userController = {
 					{
 						public_id: cloudinaryPublicId, // Same public ID to overwrite existing image
 						overwrite: true,
-					}
+					},
 				);
 
 				photo_url = updatingCustomAvatar.secure_url; // Get the updated image URL
@@ -529,7 +483,7 @@ const userController = {
 				res,
 				result.avatar_url,
 				201,
-				"Edit avatar success !"
+				"Edit avatar success !",
 			);
 		} catch (error) {
 			console.error(`\n${error}\n`);
@@ -563,7 +517,7 @@ const userController = {
 					res,
 					null,
 					403,
-					"User not authenticated !"
+					"User not authenticated !",
 				);
 			}
 
@@ -590,7 +544,7 @@ const userController = {
 
 			const oldPasswordValidation = await bcrypt.compare(
 				old_password,
-				myProfile.password
+				myProfile.password,
 			);
 
 			if (!oldPasswordValidation) {
@@ -599,7 +553,7 @@ const userController = {
 					res,
 					null,
 					401,
-					"The old password incorrect !"
+					"The old password incorrect !",
 				);
 			}
 
@@ -608,7 +562,7 @@ const userController = {
 					res,
 					null,
 					400,
-					"The new password must be different from the old password !"
+					"The new password must be different from the old password !",
 				);
 			}
 
@@ -618,7 +572,7 @@ const userController = {
 					res,
 					null,
 					400,
-					"The new password are mismatch !"
+					"The new password are mismatch !",
 				);
 			}
 
@@ -665,7 +619,7 @@ const userController = {
 					res,
 					null,
 					403,
-					"User not authenticated !"
+					"User not authenticated !",
 				);
 			}
 
@@ -719,7 +673,7 @@ const userController = {
 				res,
 				null,
 				200,
-				"Account deleted successfully, please delete user token from browser local storage !"
+				"Account deleted successfully, please delete user token from browser local storage !",
 			);
 		} catch (error) {
 			console.error(`\n${error}\n`);
@@ -729,24 +683,18 @@ const userController = {
 
 	Logout: async (req, res, next) => {
 		try {
-
 			const accessToken = req.cookies.accessToken; // Request the remaining lifetime of the access token cookie
 
 			if (!accessToken) {
-				return commonHelper.response(
-					res,
-					null,
-					403,
-					"Token not found !"
-				);
+				return commonHelper.response(res, null, 403, "Token not found !");
 			}
 
 			const refreshTokenTTL = getRemainingCookieLifetime(accessToken); // Request the remaining lifetime of the refresh token cookie
 
 			const blacklistAccessToken = await redisClient.setEx(
 				`at:revoked-${req.user.jti}`, // Blacklist cache key
-				refreshTokenTTL,				
-				req.user.id.toString() // Store user ID for potential future use (e.g., token introspection)
+				refreshTokenTTL,
+				req.user.id.toString(), // Store user ID for potential future use (e.g., token introspection)
 			);
 
 			const deleteRefreshToken = await redisClient.del(`rt:${req.user.jti}`); // Remove the refresh token from the whitelist
@@ -756,21 +704,16 @@ const userController = {
 					res,
 					null,
 					403,
-					"User not authenticated !"
+					"User not authenticated !",
 				);
 			}
 
-			return commonHelper.response(
-				res,
-				null,
-				200,
-				"Logout success !"
-			);
+			return commonHelper.response(res, null, 200, "Logout success !");
 		} catch (error) {
 			console.error(`\n${error}\n`);
 			return commonHelper.response(res, null, 500, "Internal server error");
 		}
 	},
-};
+});
 
-module.exports = userController;
+module.exports = UserController;

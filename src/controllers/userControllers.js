@@ -45,8 +45,17 @@ const UserController = ({
 				"User registered successfully !",
 			);
 		} catch (error) {
-			console.error(`\n${error}\n`);
-			return commonHelper.response(res, null, 500, "Internal server error");
+			if (error.code === "P2002") {
+				return commonHelper.response(
+					res,
+					null,
+					409,
+					"Email or username already exists",
+				);
+			} else {
+				console.error(`\n${error}\n`);
+				return commonHelper.response(res, null, 500, "Internal server error");
+			}
 		}
 	},
 

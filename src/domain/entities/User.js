@@ -1,5 +1,6 @@
 class User {
 	constructor({
+		id,
 		full_name,
 		email,
 		password,
@@ -9,6 +10,7 @@ class User {
 		role,
 		avatar_url,
 	}) {
+		this.id = id;
 		this.full_name = full_name;
 		this.email = email.toLowerCase();
 		this.password = password;
@@ -16,7 +18,7 @@ class User {
 		this.gender = gender;
 		this.username = username;
 		this.role = role || "user";
-		this.avatar_url = avatar_url || "default.png";
+		this.avatar_url = process.env.CLOUDINARY_DEFAULT_USER_AVATAR_URL;
 	}
 
 	// Method to remove sensitive data for the UI

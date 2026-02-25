@@ -1,10 +1,6 @@
 const User = require("../entities/User");
 
 module.exports = async (userRepository, passwordService, userData) => {
-	// 1. Business Logic: Check if email exists
-	const existingEmail = await userRepository.findByEmail(userData.email);
-	if (existingEmail) throw new Error("Email already registered");
-
 	// 2. Logic: Hash password (delegated to a service)
 	const hashedPassword = await passwordService.hash(userData.password);
 
@@ -17,6 +13,7 @@ module.exports = async (userRepository, passwordService, userData) => {
 	// 4. Create Entity
 	const userEntity = new User({
 		...userData,
+		avatar_url: process.env.CLOUDINARY_DEFAULT_USER_AVATAR_URL, // Set default avatar URL
 		password: hashedPassword,
 		username: finalUsername,
 	});

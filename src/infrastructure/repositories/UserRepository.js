@@ -9,7 +9,11 @@ class UserRepository {
 		return await prisma.users.findUnique({ where: { username } });
 	}
 	async save(userEntity) {
-		return await prisma.users.create({ data: userEntity });
+		try {
+			return await prisma.users.create({ data: userEntity });
+		} catch (error) {
+			throw error;
+		}
 	}
 }
 

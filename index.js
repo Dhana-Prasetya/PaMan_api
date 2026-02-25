@@ -14,9 +14,9 @@ const { RedisStore } = require("connect-redis");
 
 // ---------------------------------------- Cookie Handler ----------------------------------------
 
-const cookieParser = require('cookie-parser')
+const cookieParser = require("cookie-parser");
 
-app.use(cookieParser())
+app.use(cookieParser());
 
 // ---------------------------------------- Redis ----------------------------------------
 
@@ -50,7 +50,7 @@ app.use(
 			httpOnly: true, // Prevents client-side JS from reading the cookie
 			maxAge: 1000 * 60 * 60 * 24, // 24 hours
 		},
-	})
+	}),
 );
 
 redisClient.on("error", (err) => {
@@ -94,7 +94,7 @@ morgan.token("local", () => {
 });
 
 app.use(
-	morgan('\n:local :ip ":method :url" :status :response-time ms - :user-agent')
+	morgan('\n:local :ip ":method :url" :status :response-time ms - :user-agent'),
 );
 
 // ---------------------------------------- Helmet, JSON Parse, Malformed JSON handling ----------------------------------------
@@ -128,7 +128,6 @@ const googleRouter = require("./src/routes/googleRoutes");
 app.use("/api/products", ProductRouter); // Prefix all routes/middleware in product.js in routes with '/products'
 app.use("/api/user", UserRouter); // Prefix all routes/middleware in user.js in routes with '/users'
 app.use("/api/admin", AdminRouter);
-app.use("/api/contact", contactRouter);
 app.use("/api/contact", contactRouter);
 app.use("/google-auth", googleRouter);
 

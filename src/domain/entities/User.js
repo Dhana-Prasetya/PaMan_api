@@ -27,6 +27,7 @@ class User {
 			full_name: this.full_name,
 			username: this.username,
 			email: this.email,
+			role: this.role,
 		};
 	}
 }

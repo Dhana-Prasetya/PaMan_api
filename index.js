@@ -5,12 +5,14 @@ const port = process.env.BACKEND_RUNNING_PORT || 5000; // Set port from environm
 const express = require("express"); // Calling express module
 const app = express(); // Create instance of express
 const cors = require("cors"); // Calling cors package to select which origin can access the backend
-const morgan = require("morgan"); // Calling morgan package for logging
 const helmet = require("helmet"); // Calling helmet package for security headers by telling browser to block unknown sources
 const rateLimit = require("express-rate-limit");
 const session = require("express-session");
 const redis = require("redis");
 const { RedisStore } = require("connect-redis");
+
+const pinoHttp = require("pino-http");
+const logger = require("./src/infrastructure/logger/pino-logger"); // Custom pino logger instance
 
 // ---------------------------------------- Cookie Handler ----------------------------------------
 
@@ -84,17 +86,20 @@ app.use(apiCallLimiter); // Apply rate limiting to all requests
 
 // ---------------------------------------- Morgan http logging and ngrok proxy ----------------------------------------
 
-morgan.token("ip", (req) => {
-	// If behind proxy (NGINX, Vercel, etc.), prefer the forwarded header
-	return req.headers["x-forwarded-for"] || req.ip;
-});
-
-morgan.token("local", () => {
-	return new Date().toLocaleString();
-});
-
 app.use(
-	morgan('\n:local :ip ":method :url" :status :response-time ms - :user-agent'),
+	pinoHttp({
+		logger,
+		serializers: {
+			req: (req) => ({
+				method: req.method,
+				url: req.url,
+				// exclude headers to keep logs slim
+			}),
+			res: (res) => ({
+				statusCode: res.statusCode,
+			}),
+		},
+	}),
 );
 
 // ---------------------------------------- Helmet, JSON Parse, Malformed JSON handling ----------------------------------------
@@ -117,11 +122,16 @@ BigInt.prototype.toJSON = function () {
 	return this.toString();
 };
 
+// ---------------------------------------- Factory Dependency Injection ----------------------------------------
+
+const {
+	UserRouter,
+} = require("./src/infrastructure/dependency_injection/container");
+
 // ---------------------------------------- Routes and port listen ----------------------------------------
 
 const ProductRouter = require("./src/routes/productRoutes");
 // const UserRouter = require("./src/routes/userRoutes");
-const UserRouter = require("./src/infrastructure/routes/userRoutes"); // CLEAN
 const AdminRouter = require("./src/routes/adminRoutes");
 const contactRouter = require("./src/routes/contactRoutes");
 const googleRouter = require("./src/routes/googleRoutes");
@@ -134,6 +144,7 @@ app.use("/google-auth", googleRouter);
 
 app.use("/", (req, res) => {
 	// Basic route for root path
+	req.log.info("Root path accessed");
 	res.status(200).json({
 		message: "Welcome to the Panenmania API ! This is the default route",
 	});

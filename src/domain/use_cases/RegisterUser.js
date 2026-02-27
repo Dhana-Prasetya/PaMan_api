@@ -1,6 +1,11 @@
 const User = require("../entities/User");
 
-module.exports = async (userRepository, passwordService, userData) => {
+module.exports = async (
+	userRepository,
+	passwordService,
+	userData,
+	envValue,
+) => {
 	// 2. Logic: Hash password (delegated to a service)
 	const hashedPassword = await passwordService.hash(userData.password);
 
@@ -13,7 +18,7 @@ module.exports = async (userRepository, passwordService, userData) => {
 	// 4. Create Entity
 	const userEntity = new User({
 		...userData,
-		avatar_url: process.env.CLOUDINARY_DEFAULT_USER_AVATAR_URL, // Set default avatar URL
+		avatar_url: envValue.defaultAvatarUrl,
 		password: hashedPassword,
 		username: finalUsername,
 	});

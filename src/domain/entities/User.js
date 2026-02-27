@@ -18,7 +18,7 @@ class User {
 		this.gender = gender;
 		this.username = username;
 		this.role = role || "user";
-		this.avatar_url = process.env.CLOUDINARY_DEFAULT_USER_AVATAR_URL;
+		this.avatar_url = avatar_url;
 	}
 
 	// Method to remove sensitive data for the UI

@@ -1,4 +1,5 @@
 const { PrismaClient } = require("@prisma/client");
+const UserAlreadyExistsError = require("../exceptions/UserAlreadyExistsError.js");
 const prisma = new PrismaClient();
 
 class UserRepository {
@@ -12,7 +13,12 @@ class UserRepository {
 		try {
 			return await prisma.users.create({ data: userEntity });
 		} catch (error) {
-			throw error;
+			if (error.code === "P2002") {
+				// Prisma unique constraint violation code
+				throw new UserAlreadyExistsError();
+			} else {
+				throw error;
+			}
 		}
 	}
 }

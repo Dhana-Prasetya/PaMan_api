@@ -1,4 +1,5 @@
 const User = require("../entities/User");
+const userProfileInputCheck = require("../validation/userProfileInputCheck");
 
 module.exports = async (
 	userRepository,
@@ -6,6 +7,8 @@ module.exports = async (
 	userData,
 	envValue,
 ) => {
+	userProfileInputCheck(userData); // 1. Validation (throws if invalid)
+
 	// 2. Logic: Hash password (delegated to a service)
 	const hashedPassword = await passwordService.hash(userData.password);
 

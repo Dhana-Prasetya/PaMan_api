@@ -5,8 +5,8 @@ class PasswordService {
 		return await bcrypt.hash(password, salt);
 	}
 
-	async compare(password, hashed) {
-		return await bcrypt.compare(password, hashed);
+	async compare(password, hashedPassword) {
+		return await bcrypt.compare(password, hashedPassword);
 	}
 }
 

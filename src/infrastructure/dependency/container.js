@@ -1,4 +1,7 @@
+// Domain layer: Use cases and business logic
 const RegisterUser = require("../../domain/use_cases/RegisterUser");
+const LoginUser = require("../../domain/use_cases/LoginUser");
+
 const UserRepository = require("../repositories/UserRepository");
 const PasswordService = require("../repositories/PasswordService");
 const UserController = require("../../interfaces/controller/user-controller");
@@ -15,7 +18,10 @@ const passwordService = new PasswordService();
 const registerUseCase = (userData) =>
 	RegisterUser(userRepository, passwordService, userData, envValue);
 
-const userController = UserController({ registerUseCase });
+const loginUseCase = (userData) =>
+	LoginUser(userRepository, passwordService, userData, envValue); // TODO
+
+const userController = UserController({ registerUseCase, loginUseCase }); // dependency injection for controller (and its use cases)
 
 const UserRouter = buildUserRouter({ userController });
 

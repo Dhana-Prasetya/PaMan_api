@@ -1,5 +1,6 @@
 // Adapter to translates Express (req, res) -> Plain Object -> Controller
 const logger = require("../logger/pino-logger");
+const errorMapper = require("../../interfaces/helper/errorMappers");
 
 const expressAdapter = (controllerFn, { appLogger = logger } = {}) => {
 	return async (req, res) => {
@@ -41,13 +42,21 @@ const expressAdapter = (controllerFn, { appLogger = logger } = {}) => {
 
 			res.status(statusCode).json(body);
 		} catch (error) {
-			requestLogger?.error?.({ err: error }, "Unhandled internal error");
-			res.status(500).json({
-				status: "Error",
-				statusCode: 500,
-				data: null,
-				message: "Internal server error",
-			});
+			const mappedError = errorMapper.toResponse(error);
+			const {
+				// Destructure the mapped error to get the public response and logging details
+				publicResponse,
+				logLevel = "error",
+				logMessage = "Unhandled internal error",
+			} = mappedError;
+
+			if (typeof requestLogger?.[logLevel] === "function") {
+				requestLogger[logLevel]({ err: error }, logMessage);
+			} else {
+				requestLogger?.error?.({ err: error }, logMessage);
+			}
+
+			res.status(publicResponse.statusCode).json(publicResponse.body);
 		}
 	};
 };

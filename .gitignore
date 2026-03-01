@@ -9,3 +9,4 @@ PaMan_API_env
 test
 dockerfile
 .dockerignore
+screenshot

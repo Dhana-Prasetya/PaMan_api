@@ -50,9 +50,37 @@ const errorMapper = {
 			};
 		}
 
+		if (error.name === "NotSupportedLoginMethodError") {
+			return {
+				publicResponse: standarizedResponse(
+					null,
+					400,
+					"Conventional login method not supported !",
+				),
+				logLevel: "warn",
+				logMessage: "Login conflict: not supported login method",
+			};
+		}
+
+		if (error.name === "UserNotFoundError") {
+			return {
+				publicResponse: standarizedResponse(null, 404, "User not found !"),
+				logLevel: "warn",
+				logMessage: "Login conflict: user not found",
+			};
+		}
+
+		if (error.name === "UnauthorizedAccessError") {
+			return {
+				publicResponse: standarizedResponse(null, 401, "Unauthorized access !"),
+				logLevel: "warn",
+				logMessage: "Login conflict: unauthorized access",
+			};
+		}
+
 		if (error.name === "InvalidCredentialsError") {
 			return {
-				publicResponse: standarizedResponse(null, 400, "Invalid credentials !"),
+				publicResponse: standarizedResponse(null, 401, "Invalid credentials !"),
 				logLevel: "warn",
 				logMessage: "Login conflict: invalid credentials",
 			};

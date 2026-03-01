@@ -27,6 +27,9 @@ const expressAdapter = (controllerFn, { appLogger = logger } = {}) => {
 			const httpResponse = await controllerFn(httpRequest);
 			const statusCode = httpResponse.statusCode;
 			let body = httpResponse.body;
+			const responseCookies = Array.isArray(httpResponse.cookies)
+				? httpResponse.cookies
+				: [];
 
 			if (!body) {
 				requestLogger?.error?.("Controller returned empty response body");
@@ -39,6 +42,11 @@ const expressAdapter = (controllerFn, { appLogger = logger } = {}) => {
 			}
 
 			requestLogger?.info?.({ statusCode }, "Request handled");
+
+			for (const cookie of responseCookies) {
+				if (!cookie?.name) continue;
+				res.cookie(cookie.name, cookie.value, cookie.options || {});
+			}
 
 			res.status(statusCode).json(body);
 		} catch (error) {

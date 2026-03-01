@@ -7,8 +7,8 @@ const userCookieAuth = async (req, res, next) => {
 	try {
 		let accessToken;
 		if (req.cookies.accessToken) {
-
-			if(!req.cookies.accessToken) { // If access token cookie is missing or expired, deny access
+			if (!req.cookies.accessToken) {
+				// If access token cookie is missing or expired, deny access
 				return next(new createError(401, "Token not found."));
 			}
 
@@ -27,7 +27,7 @@ const userCookieAuth = async (req, res, next) => {
 			if (cachedToken) {
 				// If token is found in blacklist, deny access
 				return next(
-					new createError(401, "Session has been revoked. Please login again.")
+					new createError(401, "Session has been revoked. Please login again."),
 				);
 			}
 
@@ -36,7 +36,9 @@ const userCookieAuth = async (req, res, next) => {
 
 			return next();
 		} else {
-			return res.status(400).json({ message: "Server need active access token" });
+			return res
+				.status(400)
+				.json({ message: "Server need active access token" });
 		}
 	} catch (error) {
 		console.log(error);

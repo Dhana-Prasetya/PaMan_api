@@ -8,8 +8,8 @@ const cors = require("cors"); // Calling cors package to select which origin can
 const helmet = require("helmet"); // Calling helmet package for security headers by telling browser to block unknown sources
 const rateLimit = require("express-rate-limit");
 const session = require("express-session");
-const redis = require("redis");
 const { RedisStore } = require("connect-redis");
+const redisClient = require("./src/helper/redisClient.js");
 
 const pinoHttp = require("pino-http");
 const logger = require("./src/infrastructure/logger/pino-logger"); // Custom pino logger instance
@@ -30,14 +30,6 @@ if (envStage === "prod") {
 	app.set("trust proxy", 1);
 }
 
-const redisClient = redis.createClient({
-	host: process.env.REDIS_URL,
-	port: 6379,
-	legacyMode: true,
-});
-
-redisClient.connect().catch(console.error);
-
 const redisStore = new RedisStore({ client: redisClient });
 
 app.use(
@@ -46,18 +38,14 @@ app.use(
 		store: redisStore, // Tell Express to use Redis for session storage
 		secret: process.env.REDIS_UNIQUE_KEY, // Used to sign the session ID cookie. CHANGE THIS.
 		resave: false, // Prevents session from being saved back to the store if it was never modified
-		saveUninitialized: true, // Saves new sessions that have not been modified
+		saveUninitialized: false,
 		cookie: {
 			secure: redisSecure, // Set to true if using HTTPS
 			httpOnly: true, // Prevents client-side JS from reading the cookie
-			maxAge: 1000 * 60 * 60 * 24, // 24 hours
+			maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days in milliseconds
 		},
 	}),
 );
-
-redisClient.on("error", (err) => {
-	console.error("Could not connect to Redis:", err);
-});
 
 // ---------------------------------------- Cors ----------------------------------------
 
@@ -124,14 +112,12 @@ BigInt.prototype.toJSON = function () {
 
 // ---------------------------------------- Factory Dependency Injection ----------------------------------------
 
-const {
-	UserRouter,
-} = require("./src/infrastructure/dependency_injection/container");
+const { UserRouter } = require("./src/infrastructure/dependency/container");
 
 // ---------------------------------------- Routes and port listen ----------------------------------------
 
 const ProductRouter = require("./src/routes/productRoutes");
-// const UserRouter = require("./src/routes/userRoutes");
+// const UserRouter = require("./src/routes/userRoutes"); // legacy
 const AdminRouter = require("./src/routes/adminRoutes");
 const contactRouter = require("./src/routes/contactRoutes");
 const googleRouter = require("./src/routes/googleRoutes");

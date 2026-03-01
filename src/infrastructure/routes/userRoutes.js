@@ -20,5 +20,11 @@ module.exports = ({ userController }) => {
 		expressAdapter(userController.Login),
 	);
 
+	router.patch(
+		"/logout",
+		completeUserLoginData,
+		expressAdapter(userController.Logout),
+	);
+
 	return router;
 };

@@ -4,7 +4,16 @@ const prisma = new PrismaClient();
 
 class UserRepository {
 	async findByEmail(email) {
-		return await prisma.users.findUnique({ where: { email } });
+		return await prisma.users.findUnique({
+			where: { email },
+			select: {
+				id: true,
+				email: true,
+				password: true,
+				role: true,
+				username: true,
+			},
+		});
 	}
 	async findByUsername(username) {
 		return await prisma.users.findUnique({ where: { username } });

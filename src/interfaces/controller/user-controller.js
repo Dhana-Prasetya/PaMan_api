@@ -1,6 +1,10 @@
+const { cookies } = require("../helper/cookies.js");
 const { standarizedResponse } = require("../helper/standarizedResponse.js");
 
-const UserController = ({ registerUseCase } = {}) => ({
+const UserController = ({
+	registerUseCase,
+	conventionalLoginUseCase,
+} = {}) => ({
 	Register: async (httpRequest) => {
 		const result = await registerUseCase(httpRequest.body);
 
@@ -12,13 +16,22 @@ const UserController = ({ registerUseCase } = {}) => ({
 	},
 
 	Login: async (httpRequest) => {
-		// const result = await registerUseCase(httpRequest.body);
-
-		return standarizedResponse(
-			result.toPublicProfile(),
-			201,
-			"Login success !",
+		const { accessToken, jti, prod_stage } = await conventionalLoginUseCase(
+			httpRequest.body,
 		);
+
+		return {
+			...standarizedResponse(null, 201, "Login success !"),
+			cookies: cookies({ accessToken, jti, prod_stage }),
+		};
+	},
+
+	Logout: async (httpRequest) => {
+		const { accessToken, jti, prod_stage } = await conventionalLoginUseCase(
+			httpRequest.body,
+		);
+
+		return standarizedResponse(null, 201, "Logout success !");
 	},
 });
 

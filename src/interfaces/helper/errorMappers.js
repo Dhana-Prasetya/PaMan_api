@@ -86,6 +86,26 @@ const errorMapper = {
 			};
 		}
 
+		if (error.name === "MissingTokenError") {
+			return {
+				publicResponse: standarizedResponse(
+					null,
+					401,
+					"Missing access token !",
+				),
+				logLevel: "warn",
+				logMessage: "Login conflict: missing access token",
+			};
+		}
+
+		if (error.name === "InvalidSessionError") {
+			return {
+				publicResponse: standarizedResponse(null, 401, "Invalid session !"),
+				logLevel: "warn",
+				logMessage: "Login conflict: invalid session",
+			};
+		}
+
 		return {
 			publicResponse: standarizedResponse(null, 500, "Internal server error"),
 			logLevel: "error",

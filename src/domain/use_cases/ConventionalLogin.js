@@ -1,13 +1,13 @@
 const userProfileInputCheck = require("../validation/userProfileInputCheck");
 
-module.exports = async (
+module.exports = async ({
 	userRepository,
 	passwordService,
 	userData,
-	generateToken,
+	jwtToken,
 	redisCacheRepository,
 	envValue,
-) => {
+}) => {
 	userProfileInputCheck(userData); // 1. Validation (throws if invalid)
 
 	const savedUser = await userRepository.findByEmail(userData.email);
@@ -35,7 +35,7 @@ module.exports = async (
 		throw error;
 	}
 
-	const { accessToken, jti } = generateToken.createToken(
+	const { accessToken, jti } = jwtToken.createToken(
 		savedUser,
 		envValue.secretKey,
 	);

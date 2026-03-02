@@ -23,6 +23,7 @@
   "license": "ISC",
   "dependencies": {
     "@prisma/client": "^6.19.2",
+    "awilix": "^13.0.1",
     "bcryptjs": "^3.0.2",
     "cloudinary": "^2.8.0",
     "connect-redis": "^9.0.0",

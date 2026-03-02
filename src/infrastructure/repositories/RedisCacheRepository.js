@@ -4,12 +4,16 @@ class RedisCacheRepository {
 	}
 
 	async save(key, value, ttl) {
-		await this.client.set(key, value.toString(), "EX", ttl);
+		await this.client.setEx(key, ttl, value.toString());
 	}
 
 	async get(key) {
 		const data = await this.client.get(key);
 		return data;
+	}
+
+	async delete(key) {
+		const data = await this.client.del(key);
 	}
 }
 

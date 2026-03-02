@@ -7,28 +7,32 @@ module.exports = async (
 	userData,
 	envValue,
 ) => {
-	userProfileInputCheck(userData); // 1. Validation (throws if invalid)
+	try {
+		userProfileInputCheck(userData); // 1. Validation (throws if invalid)
 
-	// 2. Logic: Hash password (delegated to a service)
-	const hashedPassword = await passwordService.hash(userData.password);
+		// 2. Logic: Hash password (delegated to a service)
+		const hashedPassword = await passwordService.hash(userData.password);
 
-	// 3. Logic: Generate Unique Username
-	let finalUsername = await generateUniqueUsername(
-		userRepository,
-		userData.full_name,
-	);
+		// 3. Logic: Generate Unique Username
+		let finalUsername = await generateUniqueUsername(
+			userRepository,
+			userData.full_name,
+		);
 
-	// 4. Create Entity
-	const userEntity = new User({
-		...userData,
-		avatar_url: envValue.defaultAvatarUrl,
-		password: hashedPassword,
-		username: finalUsername,
-	});
+		// 4. Create Entity
+		const userEntity = new User({
+			...userData,
+			avatar_url: envValue.defaultAvatarUrl,
+			password: hashedPassword,
+			username: finalUsername,
+		});
 
-	// 5. Save via Repository
-	const savedUser = await userRepository.save(userEntity);
-	return new User(savedUser);
+		// 5. Save via Repository
+		const savedUser = await userRepository.save(userEntity);
+		return new User(savedUser);
+	} catch (error) {
+		throw error; // Let the Controller handle the error and response
+	}
 };
 
 // Helper inside use case for username logic

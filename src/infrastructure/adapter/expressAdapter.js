@@ -18,9 +18,7 @@ const expressAdapter = (controllerFn, { appLogger = logger } = {}) => {
 			body: req.body,
 			query: req.query,
 			params: req.params,
-			context: {
-				logger: requestLogger,
-			},
+			cookies: req.cookies,
 		};
 
 		try {

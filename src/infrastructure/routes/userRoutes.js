@@ -5,7 +5,7 @@ const { expressAdapter } = require("../adapter/expressAdapter");
 const completeUserRegisterData = require("../middleware/completeUserRegisterData");
 const completeUserLoginData = require("../middleware/completeUserLoginData");
 
-module.exports = ({ userController }) => {
+module.exports = ({ userController, userCookieAuth }) => {
 	const router = express.Router();
 
 	router.post(
@@ -22,7 +22,7 @@ module.exports = ({ userController }) => {
 
 	router.patch(
 		"/logout",
-		completeUserLoginData,
+		userCookieAuth,
 		expressAdapter(userController.Logout),
 	);
 

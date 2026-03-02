@@ -1,5 +1,4 @@
 const { PrismaClient } = require("@prisma/client");
-const UserAlreadyExistsError = require("../exceptions/UserAlreadyExistsError.js");
 const prisma = new PrismaClient();
 
 class UserRepository {
@@ -24,7 +23,9 @@ class UserRepository {
 		} catch (error) {
 			if (error.code === "P2002") {
 				// Prisma unique constraint violation code
-				throw new UserAlreadyExistsError();
+				const error = new Error("A user with this email already exists");
+				error.name = "UserAlreadyExistsError";
+				throw error;
 			} else {
 				throw error;
 			}

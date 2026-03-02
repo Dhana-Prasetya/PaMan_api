@@ -4,6 +4,7 @@ const { standarizedResponse } = require("../helper/standarizedResponse.js");
 const UserController = ({
 	registerUseCase,
 	conventionalLoginUseCase,
+	logoutUseCase,
 } = {}) => ({
 	Register: async (httpRequest) => {
 		const result = await registerUseCase(httpRequest.body);
@@ -27,10 +28,7 @@ const UserController = ({
 	},
 
 	Logout: async (httpRequest) => {
-		const { accessToken, jti, prod_stage } = await conventionalLoginUseCase(
-			httpRequest.body,
-		);
-
+		await logoutUseCase(httpRequest.cookies.accessToken);
 		return standarizedResponse(null, 201, "Logout success !");
 	},
 });

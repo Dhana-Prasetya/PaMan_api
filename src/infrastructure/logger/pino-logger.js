@@ -14,6 +14,19 @@ const logger = pino({
 					},
 				}
 			: undefined,
+	redact: {
+		paths: [
+			"req.headers.authorization",
+			"req.headers.cookie",
+			'res.headers["set-cookie"]',
+			"input.password",
+			"input.email",
+			"input.phone_number",
+			"input.gender",
+			"input.token",
+		],
+		remove: true, // Instead of [REDACTED], it completely removes the key
+	},
 });
 
 module.exports = logger;
